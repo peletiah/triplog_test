@@ -1,13 +1,17 @@
 <%inherit file="site.mako" />
+
 <div id="map" class="map">
   <div id="popup" class="ol-popup">
       <a href="#" id="popup-closer" class="ol-popup-closer"></a>
       <div id="popup-content"></div>
   </div>
 </div>
+
+
 <script type="text/javascript">
 
 // STYLE
+// --------------------------------------------
       var styleBike = new ol.style.Style({
                 stroke: new ol.style.Stroke({
                   color: 'red',
@@ -15,6 +19,15 @@
                   width: 4
                 })
               })
+
+      var styleMotor = new ol.style.Style({
+                stroke: new ol.style.Stroke({
+                  color: 'blue',
+                  opacity: 0.7,
+                  width: 4
+                })
+              })
+
 
 
       var styleMouseOver = new ol.style.Style({
@@ -45,7 +58,17 @@
                 });
 
 
-// ELEMENTS
+      var getStyle = function(feature, resolution) {
+          if (feature.get('mode') === 'bicycle') {
+            return [styleBike]
+          } else {
+            return [styleMotor]
+          };
+          }
+
+
+// OVERLAYS
+// --------------------------------------------
 
 var container = document.getElementById('popup');
 var content = document.getElementById('popup-content');
@@ -70,28 +93,9 @@ var overlay = new ol.Overlay({
 });
 
 
+// LAYERS
+// --------------------------------------------
 
-// SELECT EVENTS
-
-      var selectMouseMove = new ol.interaction.Select({
-        style :  styleMouseOver,
-        condition: ol.events.condition.mouseMove
-      });
-
-      var selectClick = new ol.interaction.Select({
-        style :  styleClick,
-        condition: ol.events.condition.click,
-        add: overlay
-      });
-
-      var pan = new ol.interaction.DragPan({
-      });
-
-
-      var getStyle = function(feature, resolution) {
-          style = [styleBike] 
-          return style
-          }
 
       var track = new ol.layer.Vector({
         source: new ol.source.GeoJSON({
@@ -109,6 +113,27 @@ var overlay = new ol.Overlay({
             })
           })
 
+
+
+
+// INTERACTION
+// --------------------------------------------
+
+      var selectMouseMove = new ol.interaction.Select({
+        style :  styleMouseOver,
+        condition: ol.events.condition.mouseMove
+      });
+
+      var selectClick = new ol.interaction.Select({
+        style :  styleClick,
+        condition: ol.events.condition.click,
+      });
+
+      var pan = new ol.interaction.DragPan({});
+
+// MAP SETUP
+// --------------------------------------------
+
       var map = new ol.Map({
         target: 'map',
         layers: [tiles,track],
@@ -117,25 +142,20 @@ var overlay = new ol.Overlay({
           zoom: 4
         }),
         overlays: [overlay],
+        interactions: ol.interaction.defaults().extend([selectMouseMove, selectClick, pan])
       });
   
-    map.addInteraction(selectMouseMove);
-    map.addInteraction(selectClick);
-    map.addInteraction(pan);
-
-
-    map.on('click', function(evt) {
-      var coordinate = evt.coordinate;
-      var hdms = ol.coordinate.toStringHDMS(ol.proj.transform(
-          coordinate, 'EPSG:3857', 'EPSG:4326'));
+      var collection = selectClick.getFeatures()
+      collection.on('add', function(e) {
+        console.log(e.element.get('mode'))
+        var coordinate = ol.proj.transform(e.element.get('center_point'), 'EPSG:4326', 'EPSG:3857');
+        var hdms = ol.coordinate.toStringHDMS(ol.proj.transform(
+            coordinate, 'EPSG:3857', 'EPSG:4326'));
  
-      overlay.setPosition(coordinate);
-      content.innerHTML = '<p>You clicked here:</p><code>' + hdms +
-          '</code>';
-      container.style.display = 'block';
-    });
-
-     
+        overlay.setPosition(coordinate);
+        content.innerHTML = '<code> ID: ' + e.element.p.id + '</code><p><code>' + e.element.p.distance + '</code></p>';
+        container.style.display = 'block';
+      });
 
 </script>
 

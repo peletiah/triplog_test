@@ -55,7 +55,7 @@ class Mode(Base):
     __tablename__ = 'mode'
     id = Column(Integer, primary_key=True)
     type = Column("type", Text, unique=True)
-    track = relationship("Track", backref="tracks", order_by="desc(Track.start_time)")
+    track = relationship("Track", backref="mode_ref", order_by="desc(Track.start_time)")
 
     def __init__(self, type):
         self.type = type

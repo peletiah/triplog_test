@@ -44,6 +44,8 @@ def generate_json_from_tracks(tracks):
                     date = date,
                     distance = rounded_distance,
                     timespan = timespan,
+                    mode = row.mode_ref.type,
+                    center_point = row.reduced_trackpoints[len(row.reduced_trackpoints)/2]
                     ),
                 )))
     tracks_json = json.dumps(dict(type='FeatureCollection', features=features))
@@ -64,6 +66,14 @@ def track_json(request):
             renderer='track/track.mako',
 )
 def track_view(request):
+    tracks = DBSession.query(Track).all()
+    track_json = generate_json_from_tracks(tracks)
+    return {
+        'track_json': track_json,
+    }
+
+@view_config(route_name='set_mode')
+def set_mode(request):
     tracks = DBSession.query(Track).all()
     track_json = generate_json_from_tracks(tracks)
     return {
