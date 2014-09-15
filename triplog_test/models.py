@@ -71,11 +71,16 @@ class Track(Base):
     start_time = Column("start_time", types.TIMESTAMP(timezone=False))
     end_time = Column("end_time", types.TIMESTAMP(timezone=False))
     uuid = Column("uuid", postgresql.UUID, unique=True)
-    mode_id = Column("mode_id", types.Integer, ForeignKey('mode.id'))
+    mode = Column("mode", types.Integer, ForeignKey('mode.id'))
     trackpoints = relationship("Trackpoint", backref="tracks", order_by="desc(Trackpoint.timestamp)")
+    __table_args__ = (
+        UniqueConstraint('start_time','end_time', name='track_start_end_time'),
+        {}
+        )
+
 
     def __init__(self, reduced_trackpoints, distance, timespan, trackpoint_count,
-                start_time, end_time, etappe, uuid):
+                start_time, end_time, uuid, mode):
         self.reduced_trackpoints = reduced_trackpoints
         self.distance = distance
         self.timespan = timespan
@@ -83,6 +88,7 @@ class Track(Base):
         self.start_time = start_time
         self.end_time = end_time
         self.uuid = uuid
+        self.mode = mode
 
     def reprJSON(self): #returns own columns only
         start_time = self.start_time.strftime("%Y-%m-%d %H:%M:%S")
@@ -121,6 +127,17 @@ class Track(Base):
         except Exception, e:
             print "Error retrieving track %s: ",e
             return None
+    @classmethod
+    def get_track_by_time(self, start_time, end_time):
+        try:
+            track = DBSession.query(Track).filter(and_(Track.start_time == start_time,Track.end_time == end_time)).one()
+            return track
+        except Exception, e:
+            print "Error retrieving track %s: ",e
+            return None
+
+
+
 
 class Trackpoint(Base):
     __tablename__ = 'trackpoint'
@@ -135,6 +152,11 @@ class Trackpoint(Base):
     pressure = Column("pressure", types.Integer)
     timestamp = Column("timestamp", types.TIMESTAMP(timezone=False))
     uuid = Column("uuid", postgresql.UUID, unique=True)
+    __table_args__ = (
+        UniqueConstraint('latitude', 'longitude','timestamp', name='trackpoint_lat_lon_time'),
+        {}
+        )
+
 
     def __init__(self, track_id, latitude, longitude, altitude, velocity, temperature, direction, pressure, \
                 timestamp, uuid):

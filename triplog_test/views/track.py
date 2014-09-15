@@ -13,10 +13,14 @@ from triplog_test.models import (
     Trackpoint
     )
 
+from triplog_test.helpers import (
+    gpxtools
+)
+
 from sqlalchemy import and_
 
 from datetime import timedelta
-import time,datetime, json
+import time,datetime,json,os,uuid
 
 from decimal import Decimal, ROUND_HALF_UP
 
@@ -71,13 +75,4 @@ def track_view(request):
     return {
         'track_json': track_json,
     }
-
-@view_config(route_name='set_mode')
-def set_mode(request):
-    tracks = DBSession.query(Track).all()
-    track_json = generate_json_from_tracks(tracks)
-    return {
-        'track_json': track_json,
-    }
-
 
