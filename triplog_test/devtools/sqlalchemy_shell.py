@@ -8,7 +8,7 @@ from pyramid.config import Configurator
 from sqlalchemy import engine_from_config
 
 
-from poab.models import DBSession
+from triplog_test.models import DBSession
 
 
 class SQLAlchemyShell(InteractiveConsole):
@@ -49,11 +49,11 @@ class SQLAlchemyShell(InteractiveConsole):
         readline.write_history_file(histfile)
 
 
-engine=engine_from_config({'sqlalchemy.url':'postgresql://poab:horekOuv9@localhost/poab_new'}, 'sqlalchemy.')
+engine=engine_from_config({'sqlalchemy.url':'postgresql://poab:eflavubOp0@localhost/triplog_test'}, 'sqlalchemy.')
 #engine=engine_from_config({'sqlalchemy.url':'sqlite:///home/benke/env/poab_editor/poab_editor.db'}, 'sqlalchemy.')
 DBSession.configure(bind=engine)
 ic = SQLAlchemyShell()
-cmd = "from poab.models import *"
+cmd = "from triplog_test.models import *"
 print ">>>", cmd
 ic.push(cmd)
 ic.interact(banner="Use quit() or Ctrl-D (i.e. EOF) to exit")

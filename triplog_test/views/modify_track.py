@@ -20,9 +20,12 @@ from triplog_test.helpers import (
 from sqlalchemy import and_
 
 from datetime import timedelta
-import time,datetime,json,os,uuid
+import time,datetime,json,os,uuid,numpy
 
 from decimal import Decimal, ROUND_HALF_UP
+
+import logging
+log = logging.getLogger(__name__)
 
 def generate_json_from_tracks(tracks):
     features=list()
@@ -124,4 +127,28 @@ def add_track(request):
 
     
 
-
+# find the bbox for track
+@view_config(route_name='track_extent')
+@view_config(route_name='track_extent:trackid')
+def track_extent(request):
+    if request.matchdict:
+        track_id = request.matchdict['trackid']
+        track = Track.get_track_by_id(track_id)
+        if track.extent is None:
+            trkpts = []
+            for pt in track.trackpoints:
+                trkpts.append([pt.longitude,pt.latitude])
+            maxx,maxy = numpy.max(trkpts, axis=0)
+            minx,miny = numpy.min(trkpts, axis=0)
+            track.extent = u'POLYGON(( \
+                                {maxx} {maxy}, \
+                                {maxx} {miny}, \
+                                {minx} {miny}, \
+                                {minx} {maxy}, \
+                                {maxx} {maxy}))'.format( \
+                                maxx=maxx, maxy=maxy, minx=minx, miny=miny)
+            log.debug(track.extent)
+            DBSession.flush()
+        
+    return Response(track.extent)
+        

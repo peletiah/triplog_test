@@ -15,7 +15,8 @@ requires = [
     'zope.sqlalchemy',
     'waitress',
     'psycopg2',
-    'lxml'
+    'lxml',
+    'numpy'
     ]
 
 setup(name='triplog_test',

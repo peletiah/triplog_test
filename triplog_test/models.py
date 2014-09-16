@@ -7,12 +7,14 @@ from sqlalchemy import (
     types,
     UniqueConstraint,
     Unicode,
-    and_
+    and_,
+    func
     )
 
 from sqlalchemy.ext.declarative import declarative_base
 
 from sqlalchemy.dialects import postgresql
+from sqlalchemy.types import UserDefinedType
 
 from sqlalchemy.orm import (
     scoped_session,
@@ -51,6 +53,17 @@ def now():
     return datetime.datetime.now()
 
 
+class Geometry(UserDefinedType):
+    def get_col_spec(self):
+        return "GEOMETRY"
+
+    def bind_expression(self, bindvalue):
+        return func.ST_GeomFromText(bindvalue, 4326, type_=self)
+
+    def column_expression(self, col):
+        return func.ST_AsText(col, type_=self)
+
+
 class Mode(Base):
     __tablename__ = 'mode'
     id = Column(Integer, primary_key=True)
@@ -71,6 +84,7 @@ class Track(Base):
     start_time = Column("start_time", types.TIMESTAMP(timezone=False))
     end_time = Column("end_time", types.TIMESTAMP(timezone=False))
     uuid = Column("uuid", postgresql.UUID, unique=True)
+    extent = Column("extent", Geometry, )
     mode = Column("mode", types.Integer, ForeignKey('mode.id'))
     trackpoints = relationship("Trackpoint", backref="tracks", order_by="desc(Trackpoint.timestamp)")
     __table_args__ = (

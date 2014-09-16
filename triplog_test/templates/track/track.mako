@@ -26,12 +26,12 @@
                 })
               })
 
-      var styleRectangle = new ol.style.Style({
+      var styleExtentMarker = new ol.style.Style({
                 stroke: new ol.style.Stroke({
                   color: 'rgba(0,192,0,0.8)',
                   width: 2
-                })
-              })
+                }),
+             })
 
 
 
@@ -154,14 +154,20 @@ var overlay = new ol.Overlay({
       });
    
     
-   
+// Act on Change of ZOOMLEVEL and/or PAN
       view.on(['change:resolution','change:center'], function() {
         zoomlevel = view.getZoom();
         extent = view.calculateExtent(map.getSize())
-        minxy = ol.proj.transform([extent[0], extent[1]], 'EPSG:3857', 'EPSG:4326')
-        maxxy = ol.proj.transform([extent[2], extent[3]], 'EPSG:3857', 'EPSG:4326')
+        bottomXY = ol.proj.transform([extent[0], extent[1]], 'EPSG:3857', 'EPSG:4326')
+        topXY = ol.proj.transform([extent[2], extent[3]], 'EPSG:3857', 'EPSG:4326')
+        minx = bottomXY[0]
+        miny = bottomXY[1]
+        maxx = topXY[0]
+        maxy = topXY[1]
+        console.log('POLYGON(('+maxx+' '+maxy+', '+ maxx+' '+miny+', '+minx+' '+miny+', '+minx+' '+maxy+', '+maxx+' '+maxy+'))')
         if (zoomlevel > 8) {
-          track.setVisible(false)
+          //track.setVisible(false)
+          track.setVisible(true)
         } else if (zoomlevel <= 8) {
           track.setVisible(true)
         };
@@ -186,17 +192,11 @@ var overlay = new ol.Overlay({
         });
         map.beforeRender(pan, zoom);
         f_extent = e.element.p.geometry.extent
-        console.log(f_extent)
-        delta_x = f_extent[2] - f_extent[0]
-        delta_y = f_extent[3] - f_extent[1]
-        console.log(delta_x, delta_y);
-        minxy_l = [f_extent[0], f_extent[1]]
-        maxxy_r = [f_extent[2], f_extent[3]];
-        minxy_r = [f_extent[0]+delta_x, f_extent[1]]
-        maxxy_l = [f_extent[0], f_extent[1]+delta_y]
-        console.log(maxxy_r, maxxy_l, minxy_l, minxy_r)
-        var rectangle = new ol.layer.Vector ({ 
-            source: new ol.source.GeoJSON(
+        bottomXY_L = [f_extent[0], f_extent[1]]
+        topXY_R = [f_extent[2], f_extent[3]];
+        bottomXY_R = [f_extent[2], f_extent[1]]
+        topXY_L = [f_extent[0], f_extent[3]]
+        extentMarker = new ol.source.GeoJSON(
                       /** @type {olx.source.GeoJSONOptions} */ ({
                         object: {
                           'type': 'FeatureCollection',
@@ -211,26 +211,36 @@ var overlay = new ol.Overlay({
                               'type': 'Feature',
                               'geometry': {
                                 'type': 'Polygon',
-                                'coordinates': [[maxxy_r, maxxy_l, minxy_l, minxy_r]]
+                                'coordinates': [[topXY_R, topXY_L, bottomXY_L, bottomXY_R]]
                               }
                             }
                           ]
                         }})),
-            style: styleRectangle
-        });
-      
-        map.addLayer(rectangle);
+     
+        extentMarker.addFeature(new ol.Feature(new ol.geom.Circle(bottomXY_L, 1000)));
+        var extentMarkerVector = new ol.layer.Vector({
+          source: extentMarker,
+          style: styleExtentMarker
+        });    
+        map.addLayer(extentMarkerVector);
         map.getView().fitExtent(e.element.p.geometry.extent, map.getSize());
         var coordinate = ol.proj.transform(e.element.get('center_point'), 'EPSG:4326', 'EPSG:3857');
         overlay.setPosition(coordinate);
-        content.innerHTML = '<code> ID: ' + e.element.p.id + '</code><p><code>' + e.element.p.distance + '</code></p>' +
-          '<p><code>' + e.element.p.date + '</code></p>';
+        content.innerHTML = '<code> ID: ' + e.element.p.id + '</code>' +
+                            '<p><code>' + e.element.p.distance + '</code></p>' +
+                            '<p><code>' + e.element.get('center_point') + '</code></p>' + 
+                            '<p><code> topXY_R: ' + ol.proj.transform(topXY_R, 'EPSG:3857', 'EPSG:4326') + '</code></p>' + 
+                            '<p><code> topXY_L: ' + ol.proj.transform(topXY_L, 'EPSG:3857', 'EPSG:4326') + '</code></p>' + 
+                            '<p><code> bottomXY_R: ' + ol.proj.transform(bottomXY_R, 'EPSG:3857', 'EPSG:4326') + '</code></p>' + 
+                            '<p><code> bottomXY_L: ' + ol.proj.transform(bottomXY_L, 'EPSG:3857', 'EPSG:4326') + '</code></p>'; 
+                            '<p><code> bottomXY_L: ' + ol.proj.transform(bottomXY_L, 'EPSG:3857', 'EPSG:4326') + '</code></p>'; 
         container.style.display = 'block';
       });
 
 
+
+// zoom map to feature extent after vector has finished loading ('change')
       track.on('change', function(event) {
-        console.log(track.getSource().getState())
         if (track.getSource().getState() == 'ready') {
           var extent = track.getSource().getExtent();
           map.getView().fitExtent(extent, map.getSize());
