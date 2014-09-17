@@ -14,7 +14,7 @@
 // --------------------------------------------
       var styleBike = new ol.style.Style({
                 stroke: new ol.style.Stroke({
-                  color: 'rgba(255,0,0,0.6)',
+                  color: 'rgba(255,0,0,0.1)',
                   width: 4
                 })
               })
@@ -91,14 +91,14 @@ var overlay = new ol.Overlay({
 // --------------------------------------------
 
 
-      var track = new ol.layer.Vector({
-        source: new ol.source.GeoJSON({
-          projection: 'EPSG:3857',
-          //object: '${track_json | n}'
-          url: '/track_json',
-          }),
-        style: getStyle,
-        });
+      //var track = new ol.layer.Vector({
+      //  source: new ol.source.GeoJSON({
+      //    projection: 'EPSG:3857',
+      //    //object: '${track_json | n}'
+      //    url: '/track_json',
+      //    }),
+      //  style: getStyle,
+      //  });
      
   
       var bing = new ol.layer.Tile({
@@ -141,7 +141,7 @@ var overlay = new ol.Overlay({
 // --------------------------------------------
 
       var view = new ol.View({
-          center: ol.proj.transform([40.9850008,29.0245040], 'EPSG:4326', 'EPSG:3857'),
+          center: ol.proj.transform([36.179327, 38.58633], 'EPSG:4326', 'EPSG:3857'),
           zoom: 8
         });
 
@@ -154,27 +154,36 @@ var overlay = new ol.Overlay({
       });
    
     
-// Act on Change of ZOOMLEVEL and/or PAN
-      view.on(['change:resolution','change:center'], function() {
-        zoomlevel = view.getZoom();
-        extent = view.calculateExtent(map.getSize())
-        bottomXY = ol.proj.transform([extent[0], extent[1]], 'EPSG:3857', 'EPSG:4326')
-        topXY = ol.proj.transform([extent[2], extent[3]], 'EPSG:3857', 'EPSG:4326')
-        minx = bottomXY[0]
-        miny = bottomXY[1]
-        maxx = topXY[0]
-        maxy = topXY[1]
-        console.log(maxx,maxy,minx,miny)
-        console.log('POLYGON(('+maxx+' '+maxy+', '+ maxx+' '+miny+', '+minx+' '+miny+', '+minx+' '+maxy+', '+maxx+' '+maxy+'))')
-        var features = new ol.layer.Vector({
-        source: new ol.source.GeoJSON({
-          projection: 'EPSG:3857',
-          url: '/features_in_extent?extent='+maxx+','+maxy+','+minx+','+miny
-          }),
-        style: getStyle,
-        });
+// FETCH FEATURES AFTER MAP MOVE
+      var featureList = []
+      map.on('moveend', function() {
+      zoomlevel = view.getZoom();
+      extent = view.calculateExtent(map.getSize())
+      bottomXY = ol.proj.transform([extent[0], extent[1]], 'EPSG:3857', 'EPSG:4326')
+      topXY = ol.proj.transform([extent[2], extent[3]], 'EPSG:3857', 'EPSG:4326')
+      minx = bottomXY[0]
+      miny = bottomXY[1]
+      maxx = topXY[0]
+      maxy = topXY[1]
+      var features = new ol.layer.Vector({
+      source: new ol.source.GeoJSON({
+        projection: 'EPSG:3857',
+        url: '/features_in_extent?extent='+maxx+','+maxy+','+minx+','+miny+'&features='+featureList
+        }),
+      style: getStyle,
+      });
 
-        map.addLayer(features)
+      map.addLayer(features)
+      features.on("change", function(event) {
+        newFeatures = features.getSource().getFeatures()
+        for ( var i=0; i<newFeatures.length; i++) {
+          featureID = newFeatures[i].p.id
+          if (featureList.indexOf(featureID) == -1) {
+            featureList.push(featureID)
+          };          
+        };
+        console.log(featureList.length)
+      });
 
 //        if (zoomlevel > 8) {
 //          track.setVisible(false)
@@ -184,6 +193,10 @@ var overlay = new ol.Overlay({
 //        };
       });
 
+
+//        map.on('moveend', function() {
+//          console.log('moved')
+//        });
 
 // ZOOM TO SELECTION AND SHOW POPUP
 

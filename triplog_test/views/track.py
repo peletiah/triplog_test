@@ -84,9 +84,10 @@ def track_view(request):
 @view_config(route_name='features_in_extent')
 def features_in_extent(request):
     if request.query_string:
-        extent = request.GET.get('extent')
-        log.debug(len(extent.split(',')))
-        maxx, maxy, minx, miny = extent.split(',')
+        maxx, maxy, minx, miny = request.GET.get('extent').split(',')
+        feature_id_list = request.GET.get('features').split(',')
+        feature_id_list = [item for item in feature_id_list if len(item) != 0 ] #weed out empty strings like u''
+        log.debug('FEATUREIDs: {0}, LENGTH: {1}'.format(feature_id_list, len(feature_id_list)))
         log.debug('{0},{1},{2},{3}'.format(maxx, maxy, minx, miny))
         viewport = u'POLYGON(( \
                     {maxx} {maxy}, \
@@ -96,8 +97,12 @@ def features_in_extent(request):
                     {maxx} {maxy}))'.format( \
                     maxx=maxx, maxy=maxy, minx=minx, miny=miny)
         viewport = select([func.ST_GeomFromText(viewport, 4326)]).label("viewport")
-        tracks_contained = DBSession.query(Track).filter(func.ST_Contains(viewport, Track.extent)).all()
-        tracks_overlapping = DBSession.query(Track).filter(func.ST_Overlaps(viewport, Track.extent)).all()
+        if len(feature_id_list) > 0:
+            tracks_contained = DBSession.query(Track).filter(and_(func.ST_Contains(viewport, Track.extent),Track.id.notin_(feature_id_list))).all()
+            tracks_overlapping = DBSession.query(Track).filter(and_(func.ST_Overlaps(viewport, Track.extent),Track.id.notin_(feature_id_list))).all()
+        else:
+            tracks_contained = DBSession.query(Track).filter(func.ST_Contains(viewport, Track.extent)).all()
+            tracks_overlapping = DBSession.query(Track).filter(func.ST_Overlaps(viewport, Track.extent)).all()
         tracks = tracks_contained + tracks_overlapping
         track_json = Response(generate_json_from_tracks(tracks))
         track_json.content_type = 'application/json'
