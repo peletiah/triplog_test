@@ -22,5 +22,6 @@ def main(global_config, **settings):
     config.add_route('add_track', '/add_track')
     config.add_route('track_extent:trackid', '/track_extent/{trackid}')
     config.add_route('track_extent', '/track_extent')
+    config.add_route('features_in_extent', '/features_in_extent')
     config.scan()
     return config.make_wsgi_app()

@@ -142,12 +142,12 @@ var overlay = new ol.Overlay({
 
       var view = new ol.View({
           center: ol.proj.transform([40.9850008,29.0245040], 'EPSG:4326', 'EPSG:3857'),
-          zoom: 2
+          zoom: 8
         });
 
       var map = new ol.Map({
         target: 'map',
-        layers: [bing,natural,track],
+        layers: [bing,natural],
         view: view,
         overlays: [overlay],
         interactions: ol.interaction.defaults().extend([selectMouseMove, selectClick, pan])
@@ -164,13 +164,24 @@ var overlay = new ol.Overlay({
         miny = bottomXY[1]
         maxx = topXY[0]
         maxy = topXY[1]
+        console.log(maxx,maxy,minx,miny)
         console.log('POLYGON(('+maxx+' '+maxy+', '+ maxx+' '+miny+', '+minx+' '+miny+', '+minx+' '+maxy+', '+maxx+' '+maxy+'))')
-        if (zoomlevel > 8) {
-          //track.setVisible(false)
-          track.setVisible(true)
-        } else if (zoomlevel <= 8) {
-          track.setVisible(true)
-        };
+        var features = new ol.layer.Vector({
+        source: new ol.source.GeoJSON({
+          projection: 'EPSG:3857',
+          url: '/features_in_extent?extent='+maxx+','+maxy+','+minx+','+miny
+          }),
+        style: getStyle,
+        });
+
+        map.addLayer(features)
+
+//        if (zoomlevel > 8) {
+//          track.setVisible(false)
+//          track.setVisible(true)
+//        } else if (zoomlevel <= 8) {
+//          track.setVisible(true)
+//        };
       });
 
 
@@ -196,33 +207,33 @@ var overlay = new ol.Overlay({
         topXY_R = [f_extent[2], f_extent[3]];
         bottomXY_R = [f_extent[2], f_extent[1]]
         topXY_L = [f_extent[0], f_extent[3]]
-        extentMarker = new ol.source.GeoJSON(
-                      /** @type {olx.source.GeoJSONOptions} */ ({
-                        object: {
-                          'type': 'FeatureCollection',
-                          'crs': {
-                            'type': 'name',
-                            'properties': {
-                              'name': 'EPSG:3857'
-                            }
-                          },
-                          'features': [
-                            {
-                              'type': 'Feature',
-                              'geometry': {
-                                'type': 'Polygon',
-                                'coordinates': [[topXY_R, topXY_L, bottomXY_L, bottomXY_R]]
-                              }
-                            }
-                          ]
-                        }})),
+        //extentMarker = new ol.source.GeoJSON(
+        //              /** @type {olx.source.GeoJSONOptions} */ ({
+        //                object: {
+        //                  'type': 'FeatureCollection',
+        //                  'crs': {
+        //                    'type': 'name',
+        //                    'properties': {
+        //                      'name': 'EPSG:3857'
+        //                    }
+        //                  },
+        //                  'features': [
+        //                    {
+        //                      'type': 'Feature',
+        //                      'geometry': {
+        //                        'type': 'Polygon',
+        //                        'coordinates': [[topXY_R, topXY_L, bottomXY_L, bottomXY_R]]
+        //                      }
+        //                    }
+        //                  ]
+        //                }})),
      
-        extentMarker.addFeature(new ol.Feature(new ol.geom.Circle(bottomXY_L, 1000)));
-        var extentMarkerVector = new ol.layer.Vector({
-          source: extentMarker,
-          style: styleExtentMarker
-        });    
-        map.addLayer(extentMarkerVector);
+        //extentMarker.addFeature(new ol.Feature(new ol.geom.Circle(bottomXY_L, 1000)));
+        //var extentMarkerVector = new ol.layer.Vector({
+        //  source: extentMarker,
+        //  style: styleExtentMarker
+        //});    
+        //map.addLayer(extentMarkerVector);
         map.getView().fitExtent(e.element.p.geometry.extent, map.getSize());
         var coordinate = ol.proj.transform(e.element.get('center_point'), 'EPSG:4326', 'EPSG:3857');
         overlay.setPosition(coordinate);
@@ -240,12 +251,12 @@ var overlay = new ol.Overlay({
 
 
 // zoom map to feature extent after vector has finished loading ('change')
-      track.on('change', function(event) {
-        if (track.getSource().getState() == 'ready') {
-          var extent = track.getSource().getExtent();
-          map.getView().fitExtent(extent, map.getSize());
-        };
-      });
+//      track.on('change', function(event) {
+//        if (track.getSource().getState() == 'ready') {
+//          var extent = track.getSource().getExtent();
+//          map.getView().fitExtent(extent, map.getSize());
+//        };
+//      });
 
  
 

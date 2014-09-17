@@ -17,12 +17,16 @@ from triplog_test.helpers import (
     gpxtools
 )
 
-from sqlalchemy import and_
+from sqlalchemy import and_,select,func
 
 from datetime import timedelta
 import time,datetime,json,os,uuid
 
 from decimal import Decimal, ROUND_HALF_UP
+
+import logging
+log = logging.getLogger(__name__)
+
 
 def generate_json_from_tracks(tracks):
     features=list()
@@ -75,4 +79,28 @@ def track_view(request):
     return {
         'track_json': track_json,
     }
+
+
+@view_config(route_name='features_in_extent')
+def features_in_extent(request):
+    if request.query_string:
+        extent = request.GET.get('extent')
+        log.debug(len(extent.split(',')))
+        maxx, maxy, minx, miny = extent.split(',')
+        log.debug('{0},{1},{2},{3}'.format(maxx, maxy, minx, miny))
+        viewport = u'POLYGON(( \
+                    {maxx} {maxy}, \
+                    {maxx} {miny}, \
+                    {minx} {miny}, \
+                    {minx} {maxy}, \
+                    {maxx} {maxy}))'.format( \
+                    maxx=maxx, maxy=maxy, minx=minx, miny=miny)
+        viewport = select([func.ST_GeomFromText(viewport, 4326)]).label("viewport")
+        tracks_contained = DBSession.query(Track).filter(func.ST_Contains(viewport, Track.extent)).all()
+        tracks_overlapping = DBSession.query(Track).filter(func.ST_Overlaps(viewport, Track.extent)).all()
+        tracks = tracks_contained + tracks_overlapping
+        track_json = Response(generate_json_from_tracks(tracks))
+        track_json.content_type = 'application/json'
+        return(track_json)
+    return Response('OK')
 
