@@ -9,13 +9,19 @@ from sqlalchemy.exc import DBAPIError
 
 from triplog_test.models import (
     DBSession,
+    Tour,
+    Etappe,
     Track,
-    Trackpoint
+    ReducedTrackpoints,
+    Trackpoint,
+    Mode
     )
 
 from triplog_test.helpers import (
     gpxtools
 )
+
+from triplog_test.helpers.ramerdouglaspeucker import reduce_trackpoints
 
 from sqlalchemy import and_
 
@@ -36,7 +42,7 @@ def generate_json_from_tracks(tracks):
             mins = total_mins % 60
             hours = total_mins / 60
             timespan = '<b>duration:</b> %sh%smin<br />' % (str(hours),str(mins))
-            date=row.start_time.strftime('%B %d, %Y')
+            date=row.start_timestamp.strftime('%B %d, %Y')
             reduced_track = list()
             features.append(
                 (dict(
@@ -69,7 +75,7 @@ def set_mode(request):
 
 def add_trackpoints_to_db(trackpoints, track):
     for trackpoint in trackpoints:
-        trackpoint.track_id = track.id
+        trackpoint.track = track
 
         try:
             DBSession.add(trackpoint)
@@ -87,8 +93,8 @@ def add_track_to_db(track_details):
 
     print type(track.reduced_trackpoints)
     track.uuid = str(uuid.uuid4())
-    track.start_time = trackpoints[0].timestamp
-    track.end_time = trackpoints[-1].timestamp
+    track.start_timestamp = trackpoints[0].timestamp
+    track.end_timestamp = trackpoints[-1].timestamp
     try:
         DBSession.add(track)
         DBSession.flush()
@@ -119,7 +125,7 @@ def add_track(request):
                             add_trackpoints_to_db( track_details['trackpoints'], track )
                             tracks_in_db.append(os.path.join(dir,file))
                             print '\n\n\n\n\n\n\n'
-                            print track.start_time,track.distance
+                            print track.start_timestamp,track.distance
                             print '\n\n\n\n\n\n\n'
                         else:
                            tracks_not_in_db.append(os.path.join(dir,file))
@@ -151,4 +157,30 @@ def track_extent(request):
             DBSession.flush()
         
     return Response(track.extent)
+
+
+
+@view_config(route_name='reduce_trackpoints')
+def reduce_tracks(request):
+    if request.query_string:
+        track_id = request.GET.get('trackid')
+        epsilon = Decimal(request.GET.get('epsilon'))
+        log.debug(epsilon)
+        track = Track.get_track_by_id(track_id)
+        tracks = DBSession.query(Track).filter(Track.id == track_id).all()
+        tracks = DBSession.query(Track).filter(Track.id.notin_([1595,1600,1596,1602,1631,1603,1633,\
+                                                            1592,1591,1590,1593,1581,1588,1582,\
+                                                            1583,1586,1587,1588,1580,1579,1578,\
+                                                            1576,1575,1572,1574,1573,1571,1570,\
+                                                            1569,1568,1567,1566,1565,1564,1563,\
+                                                            1562,1561,1558,1556,1557,1559,1552,\
+                                                            1551,1550,1555,1549,1548,1547,1546,\
+                                                            1545,1553,1544,1543,1554,1540,1541])).all()
+        for track in tracks:
+            rtp = ReducedTrackpoints(track=track, trackpoints=track.trackpoints, epsilon=epsilon)
+            DBSession.add(rtp) 
+            DBSession.flush()
+        
+    return Response('OK')
+ 
         

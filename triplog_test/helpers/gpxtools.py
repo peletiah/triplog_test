@@ -8,11 +8,10 @@ import json,re,uuid
 
 from decimal import Decimal, ROUND_HALF_UP
 
-import triplog_test.helpers.douglaspeucker as dp
+import triplog_test.helpers.ramerdouglaspeucker as rdp
 
 
 from triplog_test.models import (
-    DBSession,
     Track,
     Trackpoint,
     )
@@ -22,16 +21,16 @@ def reduce_trackpoints(trackpoints, factor):
     points = list()
     reduced_trackpoints = list() 
     for pt in trackpoints:
-        points.append(dp.Vec2D( float(pt.longitude) , float(pt.latitude) ))
-    line = dp.Line(points)
-    dp_trkpts_reduced = line.simplify(factor) #simplified douglas peucker line
-    for trackpoint in dp_trkpts_reduced.points:
+        points.append(rdp.Vec2D( float(pt.longitude) , float(pt.latitude) ))
+    line = rdp.Line(points)
+    rdp_trkpts_reduced = line.simplify(factor) #simplified douglas peucker line
+    for trackpoint in rdp_trkpts_reduced.points:
         reduced_trackpoints.append([trackpoint.coords[0],trackpoint.coords[1]]) #list of simplified trackpoints
     return reduced_trackpoints
 
 
 
-def create_json_for_db(reduced_trkpts):
+def trackpoints_to_geojson(reduced_trkpts):
             json_string=json.dumps(dict(type='Feature',geometry=dict(type='LineString',coordinates=reduced_trkpts)))
             return json_string
 
@@ -57,7 +56,7 @@ def geojson_from_gpx(gpxfile):
             trkptlist.append(new_trkpt)
 
     reduced_trkpts=reduce_trackpoints(trkptlist)
-    json_string=create_json_for_db(reduced_trkpts)
+    json_string=trackpoints_to_geojson(reduced_trkpts)
     file.close()
     return json_string
 
@@ -98,7 +97,7 @@ def parse_trackpoint_xml(trackpoint_xml, gpx_ns, ext_ns):
 
 
 def parse_gpx(gpxfile):
-    dp_factor=0.0002
+    rdp_factor=0.0002
     file = open(gpxfile,'r')
     gpx_ns = "http://www.topografix.com/GPX/1/1"
     ext_ns = "http://gps.wintec.tw/xsd/"
@@ -124,7 +123,7 @@ def parse_gpx(gpxfile):
         print len(trackpoints)
         print distance
         if not distance == '0.000': #TODO DP-calc hangs when there was no movement in the track
-            reduced_trkpts=reduce_trackpoints(trackpoints, dp_factor) #reduces the trackpoints with Douglas Peucker Algorithm
+            reduced_trkpts=reduce_trackpoints(trackpoints, rdp_factor) #reduces the trackpoints with Douglas Peucker Algorithm
             track = Track(reduced_trackpoints=reduced_trkpts, timespan=timespan, distance=distance, trackpoint_count=trackpoint_count, 
                         start_time=None, end_time=None, uuid=None, mode=1)
 

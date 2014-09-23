@@ -9,7 +9,10 @@ from sqlalchemy.exc import DBAPIError
 
 from triplog_test.models import (
     DBSession,
+    Tour,
+    Etappe,
     Track,
+    ReducedTrackpoints,
     Trackpoint
     )
 
@@ -17,7 +20,7 @@ from triplog_test.helpers import (
     gpxtools
 )
 
-from sqlalchemy import and_,select,func
+from sqlalchemy import and_,or_,select,func
 
 from datetime import timedelta
 import time,datetime,json,os,uuid
@@ -28,56 +31,69 @@ import logging
 log = logging.getLogger(__name__)
 
 
-def generate_json_from_tracks(tracks):
+def generate_json_from_tracks(tracks, epsilon):
     features=list()
-    for row in tracks:
-        if row.reduced_trackpoints:
-            rounded_distance='<b>distance:</b> %skm<br />' % (str(Decimal(row.distance).quantize(Decimal("0.01"), ROUND_HALF_UP)))
-            total_mins = row.timespan.seconds / 60
-            mins = total_mins % 60
-            hours = total_mins / 60
-            timespan = '<b>duration:</b> %sh%smin<br />' % (str(hours),str(mins))
-            date=row.start_time.strftime('%B %d, %Y')
-            reduced_track = list()
-            features.append(
-                (dict(
-                type='Feature',
-                geometry=dict(
-                    type="LineString",
-                    coordinates=row.reduced_trackpoints
-                    ),
-                properties=dict(
-                    type = 'line',
-                    id = row.id,
-                    date = date,
-                    distance = rounded_distance,
-                    timespan = timespan,
-                    mode = row.mode_ref.type,
-                    center_point = row.reduced_trackpoints[len(row.reduced_trackpoints)/2]
-                    ),
-                )))
+    for track in tracks:
+        for reduced_trackpoints in track.reduced_trackpoints:
+            if reduced_trackpoints.epsilon == epsilon:
+                rtp = reduced_trackpoints.reduced_trackpoints
+                features.append(
+                    (dict(
+                        type='Feature',
+                        geometry=dict(
+                            type="LineString",
+                            coordinates=rtp
+                            ),
+                        properties=dict(
+                            type = 'line',
+                            id = track.id,
+                            mode = track.mode_ref.type,
+                            uuid = track.uuid,
+                            center_point = rtp[len(rtp)/2]
+                            ),
+                        ))
+                    )
     tracks_json = json.dumps(dict(type='FeatureCollection', features=features))
     return tracks_json
+
+def multilinestring_from_tracks(tracks):
+    features=list()
+    coordinates = list()
+    for track in tracks:
+        if track.reduced_trackpoints:
+            coordinates.append(track.reduced_trackpoints)
+    features.append(
+        (dict(
+        type='Feature',
+        geometry=dict(
+            type="MultiLineString",
+            coordinates=coordinates
+            ),
+        )))
+    tracks_json = json.dumps(dict(type='FeatureCollection', features=features))
+    return tracks_json
+
+
 
 
 @view_config(route_name='track_json',
 )
 def track_json(request):
     tracks = DBSession.query(Track).all()
-    track_json = Response(generate_json_from_tracks(tracks))
+    track_json = Response(multilinestring_from_tracks(tracks))
     track_json.content_type = 'application/json'
     return(track_json)
 
 
 
 @view_config(route_name='track',
-            renderer='track/track.mako',
+        renderer='track/track.mako',
 )
 def track_view(request):
-    tracks = DBSession.query(Track).all()
-    track_json = generate_json_from_tracks(tracks)
+#tracks = DBSession.query(Track).all()
+#track_json = generate_json_from_tracks(tracks)
     return {
-        'track_json': track_json,
+    'track_json': 'bla',
     }
 
 
@@ -85,9 +101,13 @@ def track_view(request):
 def features_in_extent(request):
     if request.query_string:
         maxx, maxy, minx, miny = request.GET.get('extent').split(',')
-        feature_id_list = request.GET.get('features').split(',')
-        feature_id_list = [item for item in feature_id_list if len(item) != 0 ] #weed out empty strings like u''
-        log.debug('FEATUREIDs: {0}, LENGTH: {1}'.format(feature_id_list, len(feature_id_list)))
+        if request.POST.get('featureList'):
+            feature_uuid_list = request.POST.get('featureList').split(',')
+            feature_uuid_list = [item for item in feature_uuid_list if len(item) != 0 ] #weed out empty strings like u''
+        else:
+            feature_uuid_list = list()
+        zoomlevel = int(request.GET.get('zoomlevel'))
+        log.debug('FEATUREIDs: {0}, LENGTH: {1}'.format(feature_uuid_list, len(feature_uuid_list)))
         log.debug('{0},{1},{2},{3}'.format(maxx, maxy, minx, miny))
         viewport = u'POLYGON(( \
                     {maxx} {maxy}, \
@@ -97,14 +117,28 @@ def features_in_extent(request):
                     {maxx} {maxy}))'.format( \
                     maxx=maxx, maxy=maxy, minx=minx, miny=miny)
         viewport = select([func.ST_GeomFromText(viewport, 4326)]).label("viewport")
-        if len(feature_id_list) > 0:
-            tracks_contained = DBSession.query(Track).filter(and_(func.ST_Contains(viewport, Track.extent),Track.id.notin_(feature_id_list))).all()
-            tracks_overlapping = DBSession.query(Track).filter(and_(func.ST_Overlaps(viewport, Track.extent),Track.id.notin_(feature_id_list))).all()
+        if zoomlevel <= 7:
+            epsilon = Decimal('0.005')
+        elif zoomlevel > 7 and zoomlevel <= 13:
+            epsilon = Decimal('0.0005')
+        elif zoomlevel > 13:
+            epsilon = Decimal('0.00002')
+            log.debug(epsilon)
+        
+            
+        if len(feature_uuid_list) > 0:
+            tracks = DBSession.query(Track).filter(and_( \
+                                or_(
+                                    func.ST_Intersects(viewport, Track.extent), \
+                                    func.ST_Contains(viewport, Track.extent) \
+                                ), \
+                                Track.uuid.notin_(feature_uuid_list))).all()
         else:
-            tracks_contained = DBSession.query(Track).filter(func.ST_Contains(viewport, Track.extent)).all()
-            tracks_overlapping = DBSession.query(Track).filter(func.ST_Overlaps(viewport, Track.extent)).all()
-        tracks = tracks_contained + tracks_overlapping
-        track_json = Response(generate_json_from_tracks(tracks))
+            tracks = DBSession.query(Track).filter(or_( \
+                                    func.ST_Intersects(viewport, Track.extent), \
+                                    func.ST_Contains(viewport, Track.extent) \
+                                )).all()
+        track_json = Response(generate_json_from_tracks(tracks, epsilon))
         track_json.content_type = 'application/json'
         return(track_json)
     return Response('OK')

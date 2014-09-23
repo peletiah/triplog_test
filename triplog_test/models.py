@@ -26,7 +26,7 @@ from sqlalchemy.orm import (
 
 from zope.sqlalchemy import ZopeTransactionExtension
 
-from poab.helpers import timetools
+from triplog_test.helpers.ramerdouglaspeucker import reduce_trackpoints
 
 import hashlib
 from poab.helpers.pbkdf2.pbkdf2 import pbkdf2_bin
@@ -36,6 +36,8 @@ from itertools import izip
 import uuid as uuidlib
 import datetime
 
+
+from triplog_test.helpers import timetools
 
 DBSession = scoped_session(sessionmaker(extension=ZopeTransactionExtension()))
 Base = declarative_base()
@@ -68,48 +70,94 @@ class Mode(Base):
     __tablename__ = 'mode'
     id = Column(Integer, primary_key=True)
     type = Column("type", Text, unique=True)
-    track = relationship("Track", backref="mode_ref", order_by="desc(Track.start_time)")
+    track = relationship("Track", backref="mode_ref", order_by="desc(Track.start_timestamp)")
 
     def __init__(self, type):
         self.type = type
 
 
+class Tour(Base):
+    __tablename__ = 'tour'
+    id = Column(Integer, primary_key=True)
+    name = Column("name", Text)
+    description = Column("description", Text)
+    start_timestamp = Column("start_timestamp", types.TIMESTAMP(timezone=False))
+    end_timestamp = Column("end_timestamp", types.TIMESTAMP(timezone=False))
+    uuid = Column("uuid", postgresql.UUID, unique=True)
+    etappes = relationship("Etappe", backref="tour_ref", order_by="desc(Etappe.start_timestamp)")
+
+    def __init__(self, name, comment, start_timestamp,  end_timestamp, uuid):
+        self.name = name
+        self.comment = comment
+        self.start_timestamp = start_timestamp
+        self.end_timestamp = end_timestamp
+        self.uuid = uuid
+
+
+class Etappe(Base):
+    __tablename__ = 'etappe'
+    id = Column(Integer, primary_key=True)
+    tour = Column(Integer, ForeignKey('tour.id', onupdate="CASCADE", ondelete="CASCADE"))
+    start_timestamp = Column(types.TIMESTAMP(timezone=False),default=timetools.now())
+    end_timestamp = Column(types.TIMESTAMP(timezone=False),default=timetools.now())
+    name = Column(Text)
+    description = Column(Text)
+    uuid = Column(Text, unique=True)
+    track = relationship('Track', backref='etappe_ref', order_by="desc(Track.start_timestamp)")
+    __table_args__ = (
+        UniqueConstraint('start_timestamp', 'end_timestamp', name='etappe_start_end'),
+        {}
+        )
+
+    def __init__(self, tour, start_timestamp=timetools.now(), end_timestamp=timetools.now(), name=None, uuid=str(uuidlib.uuid4())):
+        self.tour = tour.id
+        self.start_timestamp = start_timestamp
+        self.end_timestamp = end_timestamp
+        self.name = name
+        self.description = description
+        self.uuid = uuid
+
+
+
+
 class Track(Base):
     __tablename__ = 'track'
     id = Column(Integer, primary_key=True)
-    reduced_trackpoints = Column("reduced_trackpoints", postgresql.ARRAY(types.Float(), dimensions=2))
+    etappe = Column(Integer, ForeignKey('etappe.id', onupdate="CASCADE", ondelete="CASCADE"))
+    mode = Column("mode", types.Integer, ForeignKey('mode.id'))
     distance = Column("distance", Text)
     timespan = Column("timespan", types.Interval)
     trackpoint_count = Column(Integer)
-    start_time = Column("start_time", types.TIMESTAMP(timezone=False))
-    end_time = Column("end_time", types.TIMESTAMP(timezone=False))
+    start_timestamp = Column("start_timestamp", types.TIMESTAMP(timezone=False))
+    end_timestamp = Column("end_timestamp", types.TIMESTAMP(timezone=False))
     uuid = Column("uuid", postgresql.UUID, unique=True)
-    extent = Column("extent", Geometry, )
-    mode = Column("mode", types.Integer, ForeignKey('mode.id'))
+    extent = Column("extent", Geometry)
     trackpoints = relationship("Trackpoint", backref="tracks", order_by="desc(Trackpoint.timestamp)")
+    reduced_trackpoints = relationship("ReducedTrackpoints", backref="tracks")
     __table_args__ = (
-        UniqueConstraint('start_time','end_time', name='track_start_end_time'),
+        UniqueConstraint("start_timestamp", "end_timestamp", name="track_start_end_timestamp"),
         {}
         )
 
 
-    def __init__(self, reduced_trackpoints, distance, timespan, trackpoint_count,
-                start_time, end_time, uuid, mode):
-        self.reduced_trackpoints = reduced_trackpoints
+    def __init__(self, etappe, mode, distance, timespan, trackpoint_count,
+                start_timestamp, end_timestamp, uuid, extent):
+        self.etappe = etappe.id
         self.distance = distance
+        self.mode = mode
         self.timespan = timespan
         self.trackpoint_count = trackpoint_count
-        self.start_time = start_time
-        self.end_time = end_time
+        self.start_timestamp = start_timestamp
+        self.end_timestamp = end_timestamp
         self.uuid = uuid
-        self.mode = mode
+        self.etxtent = extent
 
     def reprJSON(self): #returns own columns only
-        start_time = self.start_time.strftime("%Y-%m-%d %H:%M:%S")
-        end_time = self.end_time.strftime("%Y-%m-%d %H:%M:%S")
-        return dict(id=self.id, reduced_trackpoints=self.reduced_trackpoints, distance=str(self.distance),
-                    timespan=str(self.timespan), trackpoint_count=self.trackpoint_count, start_time=start_time,
-                    end_time=end_time, uuid=self.uuid)
+        start_timestamp = self.start_timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        end_timestamp = self.end_timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        return dict(id=self.id, distance=str(self.distance),
+                    timespan=str(self.timespan), trackpoint_count=self.trackpoint_count, start_timestamp=start_timestamp, 
+                    end_timestamp=end_timestamp, uuid=self.uuid)
                     #TODO:distance is a decimal, string is not a proper conversion
 
     
@@ -134,29 +182,37 @@ class Track(Base):
 
 
     @classmethod
-    def get_track_by_reduced_trackpoints(self, reduced_trackpoints):
+    def get_track_by_time(self, start_timestamp, end_timestamp):
         try:
-            track = DBSession.query(Track).filter(Track.reduced_trackpoints == reduced_trackpoints).one()
-            return track
-        except Exception, e:
-            print "Error retrieving track %s: ",e
-            return None
-    @classmethod
-    def get_track_by_time(self, start_time, end_time):
-        try:
-            track = DBSession.query(Track).filter(and_(Track.start_time == start_time,Track.end_time == end_time)).one()
+            track = DBSession.query(Track).filter(and_(Track.start_timestamp == start_timestamp, Track.end_timestamp == end_timestamp)).one()
             return track
         except Exception, e:
             print "Error retrieving track %s: ",e
             return None
 
 
+class ReducedTrackpoints(Base):
+    __tablename__ = 'reduced_trackpoints'
+    id = Column("id", Integer, primary_key=True, autoincrement=True)
+    track = Column("track", types.Integer, ForeignKey('track.id'))
+    reduced_trackpoints = Column("reduced_trackpoints", postgresql.ARRAY(types.Float(), dimensions=2))
+    epsilon = Column("epsilon", types.Numeric(11,4))
+    __table_args__ = (
+        UniqueConstraint("track", "epsilon", name="reduced_trackpoints_track_epsilon"),
+        {}
+        )
+
+
+    def __init__(self, track, trackpoints, epsilon):
+        self.track = track.id
+        self.reduced_trackpoints = reduce_trackpoints(trackpoints, epsilon)
+        self.epsilon = epsilon
 
 
 class Trackpoint(Base):
     __tablename__ = 'trackpoint'
     id = Column("id", Integer, primary_key=True, autoincrement=True)
-    track_id = Column("track_id", types.Integer, ForeignKey('track.id'))
+    track = Column("track", types.Integer, ForeignKey('track.id'))
     latitude = Column("latitude", types.Numeric(9,7))
     longitude = Column("longitude", types.Numeric(10,7))
     altitude = Column("altitude", types.Integer)
@@ -167,14 +223,14 @@ class Trackpoint(Base):
     timestamp = Column("timestamp", types.TIMESTAMP(timezone=False))
     uuid = Column("uuid", postgresql.UUID, unique=True)
     __table_args__ = (
-        UniqueConstraint('latitude', 'longitude','timestamp', name='trackpoint_lat_lon_time'),
+        UniqueConstraint('latitude', 'longitude','timestamp', name='trackpoint_lat_lon_timestamp'),
         {}
         )
 
 
-    def __init__(self, track_id, latitude, longitude, altitude, velocity, temperature, direction, pressure, \
+    def __init__(self, track, latitude, longitude, altitude, velocity, temperature, direction, pressure, \
                 timestamp, uuid):
-        self.track_id = track_id
+        self.track = track.id
         self.latitude = latitude
         self.longitude = longitude
         self.altitude = altitude
@@ -186,7 +242,7 @@ class Trackpoint(Base):
         self.uuid = uuid
 
     @classmethod
-    def get_trackpoint_by_lat_lon_time(self, latitude, longitude, timestamp):
+    def get_trackpoint_by_lat_lon_timestamp(self, latitude, longitude, timestamp):
         try:
             trackpoint = DBSession.query(Trackpoint).filter(and_(Trackpoint.latitude == latitude, Trackpoint.longitude == longitude, Trackpoint.timestamp == timestamp)).one()
             return trackpoint

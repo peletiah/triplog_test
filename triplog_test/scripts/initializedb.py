@@ -11,6 +11,8 @@ from pyramid.paster import (
 
 from ..models import (
     DBSession,
+    Tour,
+    Etappe,
     Mode,
     Track,
     Trackpoint,
