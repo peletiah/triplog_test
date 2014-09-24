@@ -3,7 +3,7 @@ import transaction
 
 from pyramid import testing
 
-from .models import DBSession
+from .models.db_model import DBSession
 
 
 class TestMyView(unittest.TestCase):
@@ -11,7 +11,7 @@ class TestMyView(unittest.TestCase):
         self.config = testing.setUp()
         from sqlalchemy import create_engine
         engine = create_engine('sqlite://')
-        from .models import (
+        from .models.db_model import (
             Base,
             MyModel,
             )

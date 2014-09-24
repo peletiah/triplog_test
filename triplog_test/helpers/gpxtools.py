@@ -11,7 +11,7 @@ from decimal import Decimal, ROUND_HALF_UP
 import triplog_test.helpers.ramerdouglaspeucker as rdp
 
 
-from triplog_test.models import (
+from triplog_test.models.db_model import (
     Track,
     Trackpoint,
     )

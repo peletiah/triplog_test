@@ -14,14 +14,14 @@
 // --------------------------------------------
       var styleBike = new ol.style.Style({
                 stroke: new ol.style.Stroke({
-                  color: 'rgba(255,0,0,0.2)',
+                  color: 'rgba(255,0,0,0.4)',
                   width: 4
                 })
               })
 
       var styleMotor = new ol.style.Style({
                 stroke: new ol.style.Stroke({
-                  color: 'rgba(0,0,0,0.2)',
+                  color: 'rgba(0,0,0,0.4)',
                   width: 4
                 })
               })
@@ -123,8 +123,8 @@ var overlay = new ol.Overlay({
 // --------------------------------------------
 
       var view = new ol.View({
-          center: ol.proj.transform([24.2239856, 44.1817344], 'EPSG:4326', 'EPSG:3857'),
-          zoom: 7
+          center: ol.proj.transform([52.0392288, 35.7925984], 'EPSG:4326', 'EPSG:3857'),
+          zoom: 8
         });
 
       var map = new ol.Map({

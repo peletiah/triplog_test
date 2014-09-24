@@ -7,7 +7,7 @@ from pyramid.view import view_config
 
 from sqlalchemy.exc import DBAPIError
 
-from triplog_test.models import (
+from triplog_test.models.db_model import (
     DBSession,
     Tour,
     Etappe,
@@ -168,14 +168,7 @@ def reduce_tracks(request):
         log.debug(epsilon)
         track = Track.get_track_by_id(track_id)
         tracks = DBSession.query(Track).filter(Track.id == track_id).all()
-        tracks = DBSession.query(Track).filter(Track.id.notin_([1595,1600,1596,1602,1631,1603,1633,\
-                                                            1592,1591,1590,1593,1581,1588,1582,\
-                                                            1583,1586,1587,1588,1580,1579,1578,\
-                                                            1576,1575,1572,1574,1573,1571,1570,\
-                                                            1569,1568,1567,1566,1565,1564,1563,\
-                                                            1562,1561,1558,1556,1557,1559,1552,\
-                                                            1551,1550,1555,1549,1548,1547,1546,\
-                                                            1545,1553,1544,1543,1554,1540,1541])).all()
+        tracks = DBSession.query(Track).all()
         for track in tracks:
             rtp = ReducedTrackpoints(track=track, trackpoints=track.trackpoints, epsilon=epsilon)
             DBSession.add(rtp) 

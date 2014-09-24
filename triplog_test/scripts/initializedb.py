@@ -9,7 +9,7 @@ from pyramid.paster import (
     setup_logging,
     )
 
-from ..models import (
+from ..models.db_model import (
     DBSession,
     Tour,
     Etappe,
