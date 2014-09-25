@@ -6,6 +6,10 @@ from .models.db_model import (
     Base,
     )
 
+from pyramid.session import UnencryptedCookieSessionFactoryConfig #TODO update to pyramid 1.5
+
+from pyramid.config import Configurator
+
 
 def main(global_config, **settings):
     """ This function returns a Pyramid WSGI application.
@@ -13,7 +17,10 @@ def main(global_config, **settings):
     engine = engine_from_config(settings, 'sqlalchemy.')
     DBSession.configure(bind=engine)
     Base.metadata.bind = engine
-    config = Configurator(settings=settings)
+    
+    map_session_factory = UnencryptedCookieSessionFactoryConfig('LanjenyocUcFish3')
+
+    config = Configurator(settings=settings, session_factory = map_session_factory)
     config.add_static_view('static', 'static', cache_max_age=3600)
     config.add_route('home', '/')
     config.add_route('track', '/track')

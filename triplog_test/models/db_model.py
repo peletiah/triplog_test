@@ -103,7 +103,7 @@ class Etappe(Base):
     name = Column(Text)
     description = Column(Text)
     uuid = Column(Text, unique=True)
-    track = relationship('Track', backref='etappe_ref', order_by="desc(Track.start_timestamp)")
+    tracks = relationship('Track', backref='etappe_ref', order_by="desc(Track.start_timestamp)")
     __table_args__ = (
         UniqueConstraint('start_timestamp', 'end_timestamp', name='etappe_start_end'),
         {}

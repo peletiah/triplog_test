@@ -89,7 +89,7 @@ var overlay = new ol.Overlay({
               imagerySet: 'Road'
             }),
             minResolution: 0,
-            maxResolution: 2000          
+            maxResolution: 3000          
           })
 
 
@@ -99,8 +99,16 @@ var overlay = new ol.Overlay({
                     'mapbox.natural-earth-hypso-bathy.jsonp',
                 crossOrigin: 'anonymous'
               }),
-              minResolution: 2000,
+              minResolution: 3000,
             })
+
+//      var track = new ol.layer.Vector({
+//        source: new ol.source.GeoJSON({
+//          projection: 'EPSG:3857',
+//          object: '${track_json | n}'
+//          }),
+//        style: getStyle ,
+//        });
 
 
 
@@ -124,7 +132,7 @@ var overlay = new ol.Overlay({
 
       var view = new ol.View({
           center: ol.proj.transform([52.0392288, 35.7925984], 'EPSG:4326', 'EPSG:3857'),
-          zoom: 8
+          zoom: 3
         });
 
       var map = new ol.Map({
@@ -150,41 +158,19 @@ var overlay = new ol.Overlay({
         //console.log(maxx,maxy,minx,miny)
         //console.log('POLYGON(('+maxx+' '+maxy+', '+ maxx+' '+miny+', '+minx+' '+miny+', '+minx+' '+maxy+', '+maxx+' '+maxy+'))')
         console.log(zoomlevel)
-        //var features = new ol.layer.Vector({
-        //  source: new ol.source.GeoJSON({
-        //    projection: 'EPSG:3857',
-        //    url: '/features_in_extent?extent='+maxx+','+maxy+','+minx+','+miny+'&zoomlevel='+zoomlevel+'&features='+featureList
-        //  }),
-        //  style: getStyle,
-        //});
+        var features = new ol.layer.Vector({
+          source: new ol.source.GeoJSON({
+            projection: 'EPSG:3857',
+            url: '/features_in_extent?extent='+maxx+','+maxy+','+minx+','+miny+'&zoomlevel='+zoomlevel
+          }),
+          style: getStyle,
+        });
 
-        var xhr = new XMLHttpRequest()
-        url = '/features_in_extent?extent='+maxx+','+maxy+','+minx+','+miny+'&zoomlevel='+zoomlevel
-        xhr.open('POST',url,true)
-        fd = new FormData()
-        fd.append("featureList", featureList)
-        xhr.send(fd)
-        xhr.onload = function() {
-          var data = JSON.parse(xhr.response);
-          var features = new ol.layer.Vector({
-            source: new ol.source.GeoJSON({
-              projection: 'EPSG:3857',
-              //url: '/features_in_extent?extent='+maxx+','+maxy+','+minx+','+miny+'&zoomlevel='+zoomlevel+'&features='+featureList
-              object: data
-            }),
-            style: getStyle,
-          });
-          map.addLayer(features)
-
-          newFeatures = features.getSource().getFeatures()
-          for ( var i=0; i<newFeatures.length; i++) {
-            featureUUID = newFeatures[i].p.uuid
-            if (featureList.indexOf(featureUUID) == -1) {
-              featureList.push(featureUUID)
-            };          
-          };
-        }
+        map.addLayer(features)
+       
       });
+
+
 //        if (zoomlevel > 8) {
 //          track.setVisible(false)
 //          track.setVisible(true)

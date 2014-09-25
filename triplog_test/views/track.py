@@ -19,9 +19,11 @@ from triplog_test.models.db_model import (
 from triplog_test.models.geojson import GeoJSON
 
 from triplog_test.helpers import (
-    gpxtools
+    gpxtools,
+    maptools
 )
 
+from modify_track import generate_json_from_tracks
 
 from sqlalchemy import and_,or_,select,func
 
@@ -48,24 +50,28 @@ def track_json(request):
         renderer='track/track.mako',
 )
 def track_view(request):
-#tracks = DBSession.query(Track).all()
-#track_json = generate_json_from_tracks(tracks)
+    session = request.session
+    if 'features' in session:
+        session['features'] = list() #page has been reloaded, so features have to be reloaded too
+    #tracks = DBSession.query(Track).all()
+    #track_json = generate_json_from_tracks(tracks)
     return {
-    'track_json': 'bla',
+        'track_json': '',
     }
 
 
 @view_config(route_name='features_in_extent')
 def features_in_extent(request):
-    zoom_low = 7
-    zoom_medium = 13
-    maxx, maxy, minx, miny = request.GET.get('extent').split(',')
-    if request.POST.get('featureList'):
-        feature_uuid_list = request.POST.get('featureList').split(',')
-        feature_uuid_list = [item for item in feature_uuid_list if len(item) != 0 ] #weed out empty strings like u''
-    else:
-        feature_uuid_list = list()
+
+# get request variables
+    session = request.session
+    if 'features' not in session:
+        session['features'] = list()
+
     zoomlevel = int(request.GET.get('zoomlevel'))
+    maxx, maxy, minx, miny = request.GET.get('extent').split(',')
+
+# define viewport for query
 
     viewport = u'POLYGON(( \
                 {maxx} {maxy}, \
@@ -76,52 +82,37 @@ def features_in_extent(request):
                 maxx=maxx, maxy=maxy, minx=minx, miny=miny)
     viewport = select([func.ST_GeomFromText(viewport, 4326)]).label("viewport")
 
-
+# set zoomlevels
+    zoom_low = 5
+    zoom_medium = 10
     if zoomlevel <= zoom_low:
-        zoom = u'low'
+        zoom = 'low'
     elif zoomlevel > zoom_low and zoomlevel <= zoom_medium:
-        zoom = u'medium'
+        zoom = 'medium'
     elif zoomlevel > zoom_medium:
-        zoom = u'high'
-    
+        zoom = 'high'
+  
+# query tracks which are not yet loaded
         
-    if len(feature_uuid_list) > 0:
+    if len(session['features']) > 0:
         tracks = DBSession.query(Track).filter(and_( \
                             or_(
                                 func.ST_Intersects(viewport, Track.extent), \
                                 func.ST_Contains(viewport, Track.extent) \
                             ), \
-                            Track.uuid.notin_(feature_uuid_list))).all()
+                            Track.id.notin_(session['features']))).all()
     else:
         tracks = DBSession.query(Track).filter(or_( \
                                 func.ST_Intersects(viewport, Track.extent), \
                                 func.ST_Contains(viewport, Track.extent) \
                             )).all()
-    if zoom == 'medium':
-        etappe_list = {}
-        log.debug(len(tracks))
-        tracks = DBSession.query(Track).filter(Track.etappe.in_([track.etappe for track in tracks])).all() # query for tracks where etappe_id is like etappe-id of tracks in viewport
-        for track in tracks: 
-            if not track.etappe in etappe_list and track.etappe is not None:
-                etappe_list[track.etappe] = [track]
-            elif track.etappe is not None:
-                etappe_list[track.etappe].append(track)
+
+# get GeoJSON-features depending on zoomlevel
+    if tracks:
+        features = maptools.get_features(tracks, session, zoom)
+    else:
         features = list()
-        for etappe, track_list in etappe_list.items():
-            coordinates = list()
-            log.debug(etappe)
-            log.debug('COORDINATES: {0}, LEN TRACKLIST: {1}'.format(len(coordinates), len(track_list)))
-            for track in track_list:
-                for reduced_trackpoints in track.reduced_trackpoints:
-                    log.debug('ZOOMLEVEL: {0}, {1}'.format(reduced_trackpoints.zoomlevel, zoom))
-                    if reduced_trackpoints.zoomlevel == zoom:
-                        coordinates.append(reduced_trackpoints.reduced_trackpoints)
-            etappe = DBSession.query(Etappe).filter(Etappe.id == etappe).one()
-            center = coordinates[len(coordinates)/2][len(coordinates[len(coordinates)/2])/2] #TODO The middle coord-pair of the middle track
-            feature = GeoJSON(geotype = 'MultiLineString', coordinates=coordinates, zoomlevel=zoom, uuid=etappe.uuid, center=center)
-            feature = feature.jsonify_feature()
-            features.append(feature)
-        track_json = Response(GeoJSON.jsonify_collection(features))
+    track_json = Response(json.dumps(dict(type='FeatureCollection', features=features)))
     track_json.content_type = 'application/json'
     return(track_json)
 

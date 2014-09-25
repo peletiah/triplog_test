@@ -26,8 +26,3 @@ class GeoJSON():
             ),
             ))
         return feature
-        
-        
-    @classmethod
-    def jsonify_collection(self,features):
-        return json.dumps(dict(type='FeatureCollection', features=features))
