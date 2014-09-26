@@ -127,56 +127,115 @@ var overlay = new ol.Overlay({
 
       var pan = new ol.interaction.DragPan({});
 
+
+// TESTING ServerVector
+// --------------------------------------------
+
+
+
+var extent_old;
+
+      var vectorSource = new ol.source.ServerVector({
+        format: new ol.format.GeoJSON(),
+        loader: function(extent, resolution, projection) {
+          zoomLevel = view.getZoom()
+          extent = view.calculateExtent(map.getSize())
+          if (JSON.stringify(extent) != JSON.stringify(extent_old)) {
+            bottomXY = ol.proj.transform([extent[0], extent[1]], 'EPSG:3857', 'EPSG:4326')
+            topXY = ol.proj.transform([extent[2], extent[3]], 'EPSG:3857', 'EPSG:4326')
+            minx = bottomXY[0]
+            miny = bottomXY[1]
+            maxx = topXY[0]
+            maxy = topXY[1]
+            var url = '/features_in_extent?extent='+maxx+','+maxy+','+minx+','+miny+'&zoomLevel='+zoomLevel
+            console.log('asfas')
+            $.ajax({
+              url: url,
+              dataType: 'jsonp'
+            });
+          };
+          extent_old = extent;
+        },
+        strategy: ol.loadingstrategy.createTile(new ol.tilegrid.XYZ({
+          maxZoom: 19
+        })),
+        projection: 'EPSG:3857'
+      });
+       
+      var loadFeatures = function(response) {
+        vectorSource.addFeatures(vectorSource.readFeatures(response));
+      };
+ 
+      var features = new ol.layer.Vector({
+        source: vectorSource,
+        style: getStyle
+      });
+
+
 // MAP SETUP
 // --------------------------------------------
 
+
+
+
       var view = new ol.View({
           center: ol.proj.transform([52.0392288, 35.7925984], 'EPSG:4326', 'EPSG:3857'),
-          zoom: 3
+          zoom: 14
         });
 
       var map = new ol.Map({
         target: 'map',
-        layers: [bing,natural],
+        layers: [bing,natural, features],
         view: view,
         overlays: [overlay],
         interactions: ol.interaction.defaults().extend([selectMouseMove, selectClick, pan])
       });
-   
+
+
+
+
+
+//map.on('moveend', function() {
+//  console.log('Hiding')
+//  features.setVisible(false)
+//  zoomLevel = view.getZoom()
+//  console.log(zoomLevel)
+//  if ((zoomLevel > 5) && (zoomLevel <= 10)) {
+//    features.setVisible(true)
+//  };
+//});
+
     
-// FETCH FEATURES AFTER MAP MOVE
-      var featureList = []
-      map.on('moveend', function() {
-        zoomlevel = view.getZoom();
-        extent = view.calculateExtent(map.getSize())
-        bottomXY = ol.proj.transform([extent[0], extent[1]], 'EPSG:3857', 'EPSG:4326')
-        topXY = ol.proj.transform([extent[2], extent[3]], 'EPSG:3857', 'EPSG:4326')
-        minx = bottomXY[0]
-        miny = bottomXY[1]
-        maxx = topXY[0]
-        maxy = topXY[1]
-        //console.log(maxx,maxy,minx,miny)
-        //console.log('POLYGON(('+maxx+' '+maxy+', '+ maxx+' '+miny+', '+minx+' '+miny+', '+minx+' '+maxy+', '+maxx+' '+maxy+'))')
-        console.log(zoomlevel)
-        var features = new ol.layer.Vector({
-          source: new ol.source.GeoJSON({
-            projection: 'EPSG:3857',
-            url: '/features_in_extent?extent='+maxx+','+maxy+','+minx+','+miny+'&zoomlevel='+zoomlevel
-          }),
-          style: getStyle,
-        });
-
-        map.addLayer(features)
-       
-      });
-
-
-//        if (zoomlevel > 8) {
-//          track.setVisible(false)
-//          track.setVisible(true)
-//        } else if (zoomlevel <= 8) {
-//          track.setVisible(true)
-//        };
+//// FETCH FEATURES AFTER MAP MOVE
+//      map.on('moveend', function() {
+//        zoomLevel = view.getZoom();
+//        extent = view.calculateExtent(map.getSize())
+//        console.log(extent.join(','))
+//        bottomXY = ol.proj.transform([extent[0], extent[1]], 'EPSG:3857', 'EPSG:4326')
+//        topXY = ol.proj.transform([extent[2], extent[3]], 'EPSG:3857', 'EPSG:4326')
+//        minx = bottomXY[0]
+//        miny = bottomXY[1]
+//        maxx = topXY[0]
+//        maxy = topXY[1]
+//        //console.log(maxx,maxy,minx,miny)
+//        //console.log('POLYGON(('+maxx+' '+maxy+', '+ maxx+' '+miny+', '+minx+' '+miny+', '+minx+' '+maxy+', '+maxx+' '+maxy+'))')
+//        console.log(zoomLevel)
+//        var features = new ol.layer.Vector({
+//          source: new ol.source.GeoJSON({
+//            projection: 'EPSG:3857',
+//            url: '/features_in_extent?extent='+maxx+','+maxy+','+minx+','+miny+'&zoomLevel='+zoomLevel
+//          }),
+//          style: getStyle,
+//        });
+//
+//        map.addLayer(features)
+//
+//      //  if (zoomLevel > 5) {
+//      //    features.setVisible(true)
+//      //  } else if (zoomLevel <= 10) {
+//      //    features.setVisible(false)
+//      //  };
+//    });
 
 // ZOOM TO SELECTION AND SHOW POPUP
 

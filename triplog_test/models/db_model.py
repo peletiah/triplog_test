@@ -29,7 +29,6 @@ from zope.sqlalchemy import ZopeTransactionExtension
 from triplog_test.helpers.ramerdouglaspeucker import reduce_trackpoints
 
 import hashlib
-from poab.helpers.pbkdf2.pbkdf2 import pbkdf2_bin
 from os import urandom
 from base64 import b64encode, b64decode
 from itertools import izip

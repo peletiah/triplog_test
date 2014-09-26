@@ -52,7 +52,7 @@ def track_json(request):
 def track_view(request):
     session = request.session
     if 'features' in session:
-        session['features'] = list() #page has been reloaded, so features have to be reloaded too
+        session['features'] = {} #page has been reloaded, so features have to be reloaded too
     #tracks = DBSession.query(Track).all()
     #track_json = generate_json_from_tracks(tracks)
     return {
@@ -62,16 +62,31 @@ def track_view(request):
 
 @view_config(route_name='features_in_extent')
 def features_in_extent(request):
-
-# get request variables
+    log.debug('EEEEEEEEEEEEEEEEEEEPPPP!')
+    ## get request variables
     session = request.session
     if 'features' not in session:
-        session['features'] = list()
+        session['features'] = {}
 
-    zoomlevel = int(request.GET.get('zoomlevel'))
+    zoomlevel = int(request.GET.get('zoomLevel'))
+
+    #- set zoomlevels
+    zoom_low = 5
+    zoom_medium = 10
+    if zoomlevel <= zoom_low:
+        zoomlevel = 'low'
+    elif zoomlevel > zoom_low and zoomlevel <= zoom_medium:
+        zoomlevel = 'medium'
+    elif zoomlevel > zoom_medium:
+        zoomlevel = 'high'
+ 
+    if zoomlevel not in session['features']:
+        session['features'][zoomlevel] = []
+
+
     maxx, maxy, minx, miny = request.GET.get('extent').split(',')
 
-# define viewport for query
+    #- define viewport for query
 
     viewport = u'POLYGON(( \
                 {maxx} {maxy}, \
@@ -82,37 +97,28 @@ def features_in_extent(request):
                 maxx=maxx, maxy=maxy, minx=minx, miny=miny)
     viewport = select([func.ST_GeomFromText(viewport, 4326)]).label("viewport")
 
-# set zoomlevels
-    zoom_low = 5
-    zoom_medium = 10
-    if zoomlevel <= zoom_low:
-        zoom = 'low'
-    elif zoomlevel > zoom_low and zoomlevel <= zoom_medium:
-        zoom = 'medium'
-    elif zoomlevel > zoom_medium:
-        zoom = 'high'
-  
-# query tracks which are not yet loaded
+ 
+    ## query tracks which are not yet loaded
         
-    if len(session['features']) > 0:
+    if len(session['features'][zoomlevel]) > 0:
         tracks = DBSession.query(Track).filter(and_( \
                             or_(
                                 func.ST_Intersects(viewport, Track.extent), \
                                 func.ST_Contains(viewport, Track.extent) \
                             ), \
-                            Track.id.notin_(session['features']))).all()
+                            Track.id.notin_(session['features'][zoomlevel]))).all()
     else:
         tracks = DBSession.query(Track).filter(or_( \
                                 func.ST_Intersects(viewport, Track.extent), \
                                 func.ST_Contains(viewport, Track.extent) \
                             )).all()
 
-# get GeoJSON-features depending on zoomlevel
+    ## get GeoJSON-features depending on zoomlevel
     if tracks:
-        features = maptools.get_features(tracks, session, zoom)
+        features = maptools.get_features(tracks, session, zoomlevel)
     else:
         features = list()
-    track_json = Response(json.dumps(dict(type='FeatureCollection', features=features)))
+    track_json = Response('loadFeatures('+json.dumps(dict(type='FeatureCollection', features=features))+')')
     track_json.content_type = 'application/json'
     return(track_json)
 
