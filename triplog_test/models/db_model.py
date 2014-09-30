@@ -24,6 +24,7 @@ from sqlalchemy.orm import (
     exc
     )
 
+
 from zope.sqlalchemy import ZopeTransactionExtension
 
 from triplog_test.helpers.ramerdouglaspeucker import reduce_trackpoints
@@ -34,6 +35,7 @@ from base64 import b64encode, b64decode
 from itertools import izip
 import uuid as uuidlib
 import datetime
+from decimal import Decimal
 
 
 from triplog_test.helpers import timetools
@@ -82,14 +84,19 @@ class Tour(Base):
     description = Column("description", Text)
     start_timestamp = Column("start_timestamp", types.TIMESTAMP(timezone=False))
     end_timestamp = Column("end_timestamp", types.TIMESTAMP(timezone=False))
+    reduced_trackpoints = Column("reduced_trackpoints", Text)
+    extent = Column("extent", Geometry)
     uuid = Column("uuid", postgresql.UUID, unique=True)
     etappes = relationship("Etappe", backref="tour_ref", order_by="desc(Etappe.start_timestamp)")
 
-    def __init__(self, name, comment, start_timestamp,  end_timestamp, uuid):
+    def __init__(self, name, description, start_timestamp=timetools.now(), end_timestamp=timetools.now(), 
+                uuid=str(uuidlib.uuid4())):
         self.name = name
-        self.comment = comment
+        self.description = description
         self.start_timestamp = start_timestamp
         self.end_timestamp = end_timestamp
+        self.reduced_trackpoints = reduce_trackpoints(trackpoints, epsilon)
+        self.extent = extent
         self.uuid = uuid
 
 
@@ -97,10 +104,12 @@ class Etappe(Base):
     __tablename__ = 'etappe'
     id = Column(Integer, primary_key=True)
     tour = Column(Integer, ForeignKey('tour.id', onupdate="CASCADE", ondelete="CASCADE"))
-    start_timestamp = Column(types.TIMESTAMP(timezone=False),default=timetools.now())
-    end_timestamp = Column(types.TIMESTAMP(timezone=False),default=timetools.now())
     name = Column(Text)
     description = Column(Text)
+    start_timestamp = Column(types.TIMESTAMP(timezone=False),default=timetools.now())
+    end_timestamp = Column(types.TIMESTAMP(timezone=False),default=timetools.now())
+    reduced_trackpoints = Column("reduced_trackpoints", Text)
+    extent = Column("extent", Geometry)
     uuid = Column(Text, unique=True)
     tracks = relationship('Track', backref='etappe_ref', order_by="desc(Track.start_timestamp)")
     __table_args__ = (
@@ -108,12 +117,16 @@ class Etappe(Base):
         {}
         )
 
-    def __init__(self, tour, start_timestamp=timetools.now(), end_timestamp=timetools.now(), name=None, uuid=str(uuidlib.uuid4())):
+    def __init__(self, tour, name, description, start_timestamp=timetools.now(), 
+                end_timestamp=timetools.now(), trackpoints=None, epsilon=Decimal(0.0005), 
+                extent=None, uuid=str(uuidlib.uuid4())):
         self.tour = tour.id
+        self.description = description
+        self.name = name
         self.start_timestamp = start_timestamp
         self.end_timestamp = end_timestamp
-        self.name = name
-        self.description = description
+        self.reduced_trackpoints = reduce_trackpoints(trackpoints, epsilon)
+        self.extent = extent
         self.uuid = uuid
 
 
@@ -129,10 +142,11 @@ class Track(Base):
     trackpoint_count = Column(Integer)
     start_timestamp = Column("start_timestamp", types.TIMESTAMP(timezone=False))
     end_timestamp = Column("end_timestamp", types.TIMESTAMP(timezone=False))
-    uuid = Column("uuid", postgresql.UUID, unique=True)
+    reduced_trackpoints = Column("reduced_trackpoints", Text)
     extent = Column("extent", Geometry)
+    uuid = Column("uuid", postgresql.UUID, unique=True)
     trackpoints = relationship("Trackpoint", backref="tracks", order_by="desc(Trackpoint.timestamp)")
-    reduced_trackpoints = relationship("ReducedTrackpoints", backref="tracks")
+    #reduced_trackpoints = relationship("ReducedTrackpoints", backref="tracks")
     __table_args__ = (
         UniqueConstraint("start_timestamp", "end_timestamp", name="track_start_end_timestamp"),
         {}
@@ -140,7 +154,8 @@ class Track(Base):
 
 
     def __init__(self, etappe, mode, distance, timespan, trackpoint_count,
-                start_timestamp, end_timestamp, uuid, extent):
+                start_timestamp, end_timestamp, trackpoints, epsilon, 
+                extent=None, uuid=str(uuidlib.uuid4())):
         self.etappe = etappe.id
         self.distance = distance
         self.mode = mode
@@ -148,8 +163,9 @@ class Track(Base):
         self.trackpoint_count = trackpoint_count
         self.start_timestamp = start_timestamp
         self.end_timestamp = end_timestamp
+        self.reduced_trackpoints = reduce_trackpoints(trackpoints, epsilon)
+        self.extent = extent
         self.uuid = uuid
-        self.etxtent = extent
 
     def reprJSON(self): #returns own columns only
         start_timestamp = self.start_timestamp.strftime("%Y-%m-%d %H:%M:%S")

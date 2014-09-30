@@ -53,22 +53,36 @@ def track_view(request):
     session = request.session
     if 'features' in session:
         session['features'] = {} #page has been reloaded, so features have to be reloaded too
-    #tracks = DBSession.query(Track).all()
-    #track_json = generate_json_from_tracks(tracks)
+    if 'counter' in session:
+        session['counter'] = 0 #page has been reloaded, so features have to be reloaded too
+ 
+    tour = DBSession.query(Tour).one()
+    features = list()
+    features.append((dict(type='Feature',
+                        geometry=dict(
+                            type="MultiLineString",
+                            coordinates=json.loads(tour.reduced_trackpoints)
+                            ))))
+    track_json = json.dumps(dict(type='FeatureCollection', features=features))
     return {
-        'track_json': '',
+        'track_json': track_json,
     }
 
 
 @view_config(route_name='features_in_extent')
 def features_in_extent(request):
-    log.debug('EEEEEEEEEEEEEEEEEEEPPPP!')
     ## get request variables
     session = request.session
     if 'features' not in session:
         session['features'] = {}
 
-    zoomlevel = int(request.GET.get('zoomLevel'))
+    if 'counter' not in session:
+        session['counter'] = 1
+        log.debug('not here')
+    else:
+        log.debug('yess')
+
+    zoomlevel = int(request.GET.get('zoomlevel'))
 
     #- set zoomlevels
     zoom_low = 5
@@ -79,7 +93,9 @@ def features_in_extent(request):
         zoomlevel = 'medium'
     elif zoomlevel > zoom_medium:
         zoomlevel = 'high'
- 
+    
+    zoomlevel = 'low'
+
     if zoomlevel not in session['features']:
         session['features'][zoomlevel] = []
 
@@ -100,6 +116,7 @@ def features_in_extent(request):
  
     ## query tracks which are not yet loaded
         
+ 
     if len(session['features'][zoomlevel]) > 0:
         tracks = DBSession.query(Track).filter(and_( \
                             or_(
@@ -118,7 +135,11 @@ def features_in_extent(request):
         features = maptools.get_features(tracks, session, zoomlevel)
     else:
         features = list()
-    track_json = Response('loadFeatures('+json.dumps(dict(type='FeatureCollection', features=features))+')')
+    log.debug(len(features))
+    if len(features) > 0:
+        session['counter']=session['counter']+1
+    log.debug(session['counter'])
+    track_json = Response(json.dumps(dict(type='FeatureCollection', features=features)))
     track_json.content_type = 'application/json'
     return(track_json)
 

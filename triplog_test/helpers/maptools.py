@@ -79,7 +79,6 @@ def get_features(tracks, session, zoomlevel):
             for track in tracks:
                 etappe_rtp.append(rtp_from_track(track, session, zoomlevel))
 
-            log.debug(etappe_rtp)
             center = etappe_rtp[len(etappe_rtp)/2][len(etappe_rtp[len(etappe_rtp)/2])/2] #TODO The middle coord-pair of the middle track
 
             feature = GeoJSON(geotype = 'MultiLineString', coordinates=etappe_rtp, zoomlevel=zoomlevel, center=center)

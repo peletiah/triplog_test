@@ -168,12 +168,18 @@ def reduce_tracks(request):
         track_id = request.GET.get('trackid')
         epsilon = Decimal(request.GET.get('epsilon'))
         log.debug(epsilon)
-        track = Track.get_track_by_id(track_id)
-        tracks = DBSession.query(Track).filter(Track.id == track_id).all()
-        tracks = DBSession.query(Track).all()
-        for track in tracks:
-            rtp = ReducedTrackpoints(track=track, trackpoints=track.trackpoints, epsilon=epsilon)
-            DBSession.add(rtp) 
+        #track = Track.get_track_by_id(track_id)
+        #tracks = DBSession.query(Track).filter(Track.id == track_id).all()
+        #tracks = DBSession.query(Track).all()
+        # etappes = DBSession.query(Etappe).all()
+        tours = DBSession.query(Tour).all()
+        for tour in tours:
+            rtp = list()
+            for etappe in tour.etappes:        
+                for track in etappe.tracks:
+                    reduced_trackpoints = reduce_trackpoints(track.trackpoints, 0.005)
+                    rtp.append(reduced_trackpoints)
+            tour.reduced_trackpoints = json.dumps(rtp)
             DBSession.flush()
         
     return Response('OK')
