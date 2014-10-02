@@ -39,11 +39,19 @@ log = logging.getLogger(__name__)
 @view_config(route_name='track_json',
 )
 def track_json(request):
-    tracks = DBSession.query(Track).all()
-    track_json = Response(multilinestring_from_tracks(tracks))
+    #tracks = DBSession.query(Track).all()
+    #track_json = Response(multilinestring_from_tracks(tracks))
+    #track_json.content_type = 'application/json'
+    tour = DBSession.query(Tour).one()
+    features = list()
+    features.append((dict(type='Feature',
+                        geometry=dict(
+                            type="MultiLineString",
+                            coordinates=json.loads(tour.reduced_trackpoints)
+                            ))))                    
+    track_json = Response(json.dumps(dict(type='FeatureCollection', features=features)))
     track_json.content_type = 'application/json'
-    return(track_json)
-
+    return track_json
 
 
 @view_config(route_name='track',
@@ -56,14 +64,15 @@ def track_view(request):
     if 'counter' in session:
         session['counter'] = 0 #page has been reloaded, so features have to be reloaded too
  
-    tour = DBSession.query(Tour).one()
-    features = list()
-    features.append((dict(type='Feature',
-                        geometry=dict(
-                            type="MultiLineString",
-                            coordinates=json.loads(tour.reduced_trackpoints)
-                            ))))
-    track_json = json.dumps(dict(type='FeatureCollection', features=features))
+    #tour = DBSession.query(Tour).one()
+    #features = list()
+    #features.append((dict(type='Feature',
+    #                    geometry=dict(
+    #                        type="MultiLineString",
+    #                        coordinates=json.loads(tour.reduced_trackpoints)
+    #                        ))))
+    #track_json = json.dumps(dict(type='FeatureCollection', features=features))
+    track_json = ''
     return {
         'track_json': track_json,
     }
@@ -78,9 +87,6 @@ def features_in_extent(request):
 
     if 'counter' not in session:
         session['counter'] = 1
-        log.debug('not here')
-    else:
-        log.debug('yess')
 
     zoomlevel = int(request.GET.get('zoomlevel'))
 
@@ -94,8 +100,6 @@ def features_in_extent(request):
     elif zoomlevel > zoom_medium:
         zoomlevel = 'high'
     
-    zoomlevel = 'low'
-
     if zoomlevel not in session['features']:
         session['features'][zoomlevel] = []
 
@@ -111,34 +115,98 @@ def features_in_extent(request):
                 {minx} {maxy}, \
                 {maxx} {maxy}))'.format( \
                 maxx=maxx, maxy=maxy, minx=minx, miny=miny)
+#    log.debug(viewport)
     viewport = select([func.ST_GeomFromText(viewport, 4326)]).label("viewport")
 
  
     ## query tracks which are not yet loaded
         
  
-    if len(session['features'][zoomlevel]) > 0:
-        tracks = DBSession.query(Track).filter(and_( \
-                            or_(
-                                func.ST_Intersects(viewport, Track.extent), \
-                                func.ST_Contains(viewport, Track.extent) \
-                            ), \
-                            Track.id.notin_(session['features'][zoomlevel]))).all()
-    else:
-        tracks = DBSession.query(Track).filter(or_( \
-                                func.ST_Intersects(viewport, Track.extent), \
-                                func.ST_Contains(viewport, Track.extent) \
-                            )).all()
+#    if len(session['features'][zoomlevel]) > 0:
+#        tracks = DBSession.query(Track).filter(and_( \
+#                            or_(
+#                                func.ST_Intersects(viewport, Track.extent), \
+#                                func.ST_Contains(viewport, Track.extent) \
+#                            ), \
+#                            Track.id.notin_(session['features'][zoomlevel]))).all()
+#    else:
+#        tracks = DBSession.query(Track).filter(or_( \
+#                                func.ST_Intersects(viewport, Track.extent), \
+#                                func.ST_Contains(viewport, Track.extent) \
+#                            )).all()
+#
 
-    ## get GeoJSON-features depending on zoomlevel
-    if tracks:
-        features = maptools.get_features(tracks, session, zoomlevel)
-    else:
+
+#    q_tours_contained = DBSession.query(Tour).filter(func.ST_Contains(viewport, Tour.extent))
+#    q_tours_intersect = DBSession.query(Tour).filter(func.ST_Intersects(viewport, Tour.extent))
+#    ## get GeoJSON-features depending on zoomlevel
+#    features = list()
+#    if q_tours_contained.count() > 0:
+#        for tour in q_tours_contained.all():
+#            log.debug('Tour contained')
+#            feature = GeoJSON(geotype = 'MultiLineString', coordinates=json.loads(tour.reduced_trackpoints), zoomlevel='low', center='72.9211072, 33.7250752')
+#            feature = feature.jsonify_feature()
+#            features.append(feature)
+#    if q_tours_intersect.count() > 0:
+#        log.debug('Tour intersecting')
+#        for tour in q_tours_intersect.all():
+#            q_etappes_contained = DBSession.query(Etappe).filter(and_(func.ST_Contains(viewport, Etappe.extent), Etappe.tour == tour.id))
+#            q_etappes_intersect = DBSession.query(Etappe).filter(and_(func.ST_Intersects(viewport, Etappe.extent), Etappe.tour == tour.id))
+#            log.debug(q_etappes_intersect.count() > 0)
+#            if q_etappes_contained.count() > 0:
+#                log.debug('Etappe contained')
+#                for etappe in q_etappes_contained.all():
+#                    feature = GeoJSON(geotype = 'MultiLineString', coordinates=json.loads(etappe.reduced_trackpoints), zoomlevel='medium', center='72.9211072, 33.7250752')
+#                    feature = feature.jsonify_feature()
+#                    features.append(feature)
+#            if q_etappes_intersect.count() > 0:
+#                log.debug('Etappe intersecting')
+#                for etappe in q_etappes_intersect.all():
+#                    q_tracks = DBSession.query(Track).filter(and_(
+#                                or_(
+#                                    func.ST_Intersects(viewport, Track.extent),
+#                                    func.ST_Contains(viewport, Track.extent)
+#                                ), Track.etappe == etappe.id
+#                             ))
+#                    if q_tracks.count() > 0:
+#                        log.debug('Tracks found')
+#                        for track in q_tracks.all():
+#                            feature = GeoJSON(geotype = 'LineString', coordinates=json.loads(track.reduced_trackpoints), zoomlevel='high', center='72.9211072, 33.7250752')
+#                            feature = feature.jsonify_feature()
+#                            features.append(feature)
+#    else:
+#        features = list()
+
+
+    tours_contained_query = DBSession.query(Tour).filter(func.ST_Contains(viewport, Tour.extent))
+    features = list()
+    has_features, features, tours_contained = maptools.query_features(tours_contained_query, False, 'MultiLineString', features) #Tours contained
+    tours_intersect_query = DBSession.query(Tour).filter(and_(func.ST_Intersects(viewport, Tour.extent), Tour.id.notin_(tours_contained)))
+    has_features, tours, tours_intersected = maptools.query_features(tours_intersect_query, branch=True)
+    if has_features:
+        log.debug('Tour intersects')
+        for tour in tours:
+            etappes_contained_query = DBSession.query(Etappe).filter(and_(func.ST_Contains(viewport, Etappe.extent), Etappe.tour == tour.id))
+            has_features, features, etappes_contained = maptools.query_features(etappes_contained_query, False, 'MultiLineString', features) #Etappes contained
+            etappes_intersect_query = DBSession.query(Etappe).filter(and_(func.ST_Intersects(viewport, Etappe.extent), Etappe.tour == tour.id, Etappe.id.notin_(etappes_contained)))
+            has_features, etappes, etappes_intersected = maptools.query_features(etappes_intersect_query, branch=True)
+            if has_features:
+                log.debug('Etappe intersects')
+                for etappe in etappes:
+                    tracks_query = DBSession.query(Track).filter(and_(
+                                or_(
+                                    func.ST_Contains(viewport, Track.extent),
+                                    func.ST_Intersects(viewport, Track.extent)
+                                ), Track.etappe == etappe.id
+                             ))        
+                    features = maptools.query_features(tracks_query, False, 'LineString', features)[1]
+        
+    elif len(features) == 0:
         features = list()
-    log.debug(len(features))
+    #log.debug(len(features))
     if len(features) > 0:
         session['counter']=session['counter']+1
-    log.debug(session['counter'])
+    #log.debug(session['counter'])
     track_json = Response(json.dumps(dict(type='FeatureCollection', features=features)))
     track_json.content_type = 'application/json'
     return(track_json)

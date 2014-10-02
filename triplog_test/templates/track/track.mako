@@ -102,13 +102,13 @@ var overlay = new ol.Overlay({
               minResolution: 3000,
             })
 
-      var track = new ol.layer.Vector({
-        source: new ol.source.GeoJSON({
-          projection: 'EPSG:3857',
-          object: '${track_json | n}'
-          }),
-        style: getStyle ,
-        });
+//      var track = new ol.layer.Vector({
+//        source: new ol.source.GeoJSON({
+//          projection: 'EPSG:3857',
+//          object: '${track_json | n}'
+//          }),
+//        style: getStyle ,
+//        });
 
 
 
@@ -180,51 +180,53 @@ var overlay = new ol.Overlay({
 
       var view = new ol.View({
           center: ol.proj.transform([52.0392288, 35.7925984], 'EPSG:4326', 'EPSG:3857'),
-          zoom: 14
+          zoom: 3
         });
 
       var map = new ol.Map({
         target: 'map',
-        layers: [bing,natural,track],
+        layers: [bing,natural],
         view: view,
         overlays: [overlay],
         interactions: ol.interaction.defaults().extend([selectMouseMove, selectClick, pan])
       });
 
 
-//// FETCH FEATURES AFTER MAP MOVE
-//      map.on('moveend', function() {
-//        zoomlevel = view.getZoom();
-//        extent = view.calculateExtent(map.getSize())
-//        bottomXY = ol.proj.transform([extent[0], extent[1]], 'EPSG:3857', 'EPSG:4326')
-//        topXY = ol.proj.transform([extent[2], extent[3]], 'EPSG:3857', 'EPSG:4326')
-//        minx = bottomXY[0]
-//        miny = bottomXY[1]
-//        maxx = topXY[0]
-//        maxy = topXY[1]
-//        //console.log(maxx,maxy,minx,miny)
-//        //console.log('POLYGON(('+maxx+' '+maxy+', '+ maxx+' '+miny+', '+minx+' '+miny+', '+minx+' '+maxy+', '+maxx+' '+maxy+'))')
-//        console.log(zoomlevel)
-//        source = new ol.source.GeoJSON({
-//            projection: 'EPSG:3857',
-//            url: '/features_in_extent?extent='+maxx+','+maxy+','+minx+','+miny+'&zoomlevel='+zoomlevel
-//          })
-//
-//
-//        
-//        features = new ol.layer.Vector({
-//          source: source, 
-//          style: getStyle,
-//        });
-//
-//
-//        map.addLayer(features)
-//
-//      //features.setVisible(false)
-//      //if ((zoomlevel > 5) && (zoomlevel <= 10)) {
-//      //    features.setVisible(true)
-//      //};
-//
+// FETCH FEATURES AFTER MAP MOVE
+      map.on('moveend', function() {
+        zoomlevel = view.getZoom();
+        extent = view.calculateExtent(map.getSize())
+        bottomXY = [extent[0], extent[1]]
+        topXY = [extent[2], extent[3]]
+        minx = bottomXY[0]
+        miny = bottomXY[1]
+        maxx = topXY[0]
+        maxy = topXY[1]
+        //console.log(maxx,maxy,minx,miny)
+        //console.log('POLYGON(('+maxx+' '+maxy+', '+ maxx+' '+miny+', '+minx+' '+miny+', '+minx+' '+maxy+', '+maxx+' '+maxy+'))')
+        //console.log(zoomlevel)
+        console.log('/features_in_extent?extent='+maxx+','+maxy+','+minx+','+miny+'&zoomlevel='+zoomlevel)
+        source = new ol.source.GeoJSON({
+            projection: 'EPSG:3857',
+            url: '/features_in_extent?extent='+maxx+','+maxy+','+minx+','+miny+'&zoomlevel='+zoomlevel
+          })
+
+
+        
+        features = new ol.layer.Vector({
+          source: source, 
+          style: getStyle,
+        });
+
+
+
+        map.addLayer(features)
+
+      //features.setVisible(false)
+      //if ((zoomlevel > 5) && (zoomlevel <= 10)) {
+      //    features.setVisible(true)
+      //};
+
 
 //        zoom_low = 5
 //        zoom_medium = 10
@@ -240,23 +242,12 @@ var overlay = new ol.Overlay({
 //        try {
 //          console.log(zoomlevel)
 //          e.getSource().getFeatures().forEach( function(p) {
-//            e.setVisible(true)
-//            if (zoomlevel == 'high' && ((p.getProperties().zoomlevel == 'low') || (p.getProperties().zoomlevel == 'medium'))) {
-//              e.setVisible(false)
-//            }
-//            if (zoomlevel == 'medium' && ((p.getProperties().zoomlevel == 'low') || (p.getProperties().zoomlevel == 'high'))) {
-//              e.setVisible(false)
-//            }
-//            if (zoomlevel == 'low' && ((p.getProperties().zoomlevel == 'medium') || (p.getProperties().zoomlevel == 'high'))) {
-//              e.setVisible(false)
-//            }
-//
-//
+//            console.log(p)
 //          })
 //        }
 //        catch(err) {}
 //      });
-////    });
+    });
 
 
 

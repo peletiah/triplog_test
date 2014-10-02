@@ -9,6 +9,8 @@ from triplog_test.models.geojson import (
     GeoJSON
 )
 
+import json
+
 import logging
 log = logging.getLogger(__name__)
 
@@ -99,3 +101,19 @@ def get_features(tracks, session, zoomlevel):
 
     return features
 
+
+
+def query_features(query, branch, geotype=None, features=None, element=None):
+    if query.count() > 0 and branch == False:
+        elements_contained=list()
+        for element in query.all():
+            feature = GeoJSON(geotype = geotype, coordinates=json.loads(element.reduced_trackpoints), zoomlevel='low', center='72.9211072, 33.7250752')
+            feature = feature.jsonify_feature()
+            features.append(feature)
+            elements_contained.append(element.id)
+        return True, features, elements_contained
+    if query.count() > 0 and branch == True:
+        elements = query.all()
+        return True, elements, list()
+    else:
+        return False,features, list()

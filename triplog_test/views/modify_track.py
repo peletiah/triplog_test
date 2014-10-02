@@ -23,7 +23,7 @@ from triplog_test.helpers import (
 
 from triplog_test.helpers.ramerdouglaspeucker import reduce_trackpoints
 
-from sqlalchemy import and_
+from sqlalchemy import and_,or_, select, func
 
 from datetime import timedelta
 import time,datetime,json,os,uuid,numpy
@@ -142,19 +142,21 @@ def track_extent(request):
     if request.matchdict:
         track_id = request.matchdict['trackid']
         track = Track.get_track_by_id(track_id)
-        if track.extent is None:
-            trkpts = []
+        tracks = DBSession.query(Track).all()
+        for track in tracks:
+            trkpts = list()
             for pt in track.trackpoints:
                 trkpts.append([pt.longitude,pt.latitude])
             maxx,maxy = numpy.max(trkpts, axis=0)
             minx,miny = numpy.min(trkpts, axis=0)
-            track.extent = u'POLYGON(( \
+            extent = u'POLYGON(( \
                                 {maxx} {maxy}, \
                                 {maxx} {miny}, \
                                 {minx} {miny}, \
                                 {minx} {maxy}, \
                                 {maxx} {maxy}))'.format( \
                                 maxx=maxx, maxy=maxy, minx=minx, miny=miny)
+            track.extent = DBSession.query(select([func.ST_AsText(func.ST_Transform(func.ST_GeomFromText(extent, 4326),3857))]).label("extent")).one()[0]
             log.debug(track.extent)
             DBSession.flush()
         
@@ -170,16 +172,12 @@ def reduce_tracks(request):
         log.debug(epsilon)
         #track = Track.get_track_by_id(track_id)
         #tracks = DBSession.query(Track).filter(Track.id == track_id).all()
-        #tracks = DBSession.query(Track).all()
+        tracks = DBSession.query(Track).all()
         # etappes = DBSession.query(Etappe).all()
-        tours = DBSession.query(Tour).all()
-        for tour in tours:
-            rtp = list()
-            for etappe in tour.etappes:        
-                for track in etappe.tracks:
-                    reduced_trackpoints = reduce_trackpoints(track.trackpoints, 0.005)
-                    rtp.append(reduced_trackpoints)
-            tour.reduced_trackpoints = json.dumps(rtp)
+        #tours = DBSession.query(Tour).all()
+        for track in tracks:
+            rtp = reduce_trackpoints(track.trackpoints, 0.00002)
+            track.reduced_trackpoints = json.dumps(rtp)
             DBSession.flush()
         
     return Response('OK')
