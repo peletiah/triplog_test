@@ -86,17 +86,19 @@ class Tour(Base):
     end_timestamp = Column("end_timestamp", types.TIMESTAMP(timezone=False))
     reduced_trackpoints = Column("reduced_trackpoints", Text)
     extent = Column("extent", Geometry)
+    center = Column("center", postgresql.ARRAY(types.Float(), dimensions=1))
     uuid = Column("uuid", postgresql.UUID, unique=True)
     etappes = relationship("Etappe", backref="tour_ref", order_by="desc(Etappe.start_timestamp)")
 
     def __init__(self, name, description, start_timestamp=timetools.now(), end_timestamp=timetools.now(), 
-                uuid=str(uuidlib.uuid4())):
+                center=None, uuid=str(uuidlib.uuid4())):
         self.name = name
         self.description = description
         self.start_timestamp = start_timestamp
         self.end_timestamp = end_timestamp
         self.reduced_trackpoints = reduce_trackpoints(trackpoints, epsilon)
         self.extent = extent
+        self.center = center
         self.uuid = uuid
 
 
@@ -110,6 +112,7 @@ class Etappe(Base):
     end_timestamp = Column(types.TIMESTAMP(timezone=False),default=timetools.now())
     reduced_trackpoints = Column("reduced_trackpoints", Text)
     extent = Column("extent", Geometry)
+    center = Column("center", postgresql.ARRAY(types.Float(), dimensions=1))
     uuid = Column(Text, unique=True)
     tracks = relationship('Track', backref='etappe_ref', order_by="desc(Track.start_timestamp)")
     __table_args__ = (
@@ -119,7 +122,7 @@ class Etappe(Base):
 
     def __init__(self, tour, name, description, start_timestamp=timetools.now(), 
                 end_timestamp=timetools.now(), trackpoints=None, epsilon=Decimal(0.0005), 
-                extent=None, uuid=str(uuidlib.uuid4())):
+                extent=None, center=None, uuid=str(uuidlib.uuid4())):
         self.tour = tour.id
         self.description = description
         self.name = name
@@ -127,6 +130,7 @@ class Etappe(Base):
         self.end_timestamp = end_timestamp
         self.reduced_trackpoints = reduce_trackpoints(trackpoints, epsilon)
         self.extent = extent
+        self.center = center
         self.uuid = uuid
 
 
@@ -144,6 +148,7 @@ class Track(Base):
     end_timestamp = Column("end_timestamp", types.TIMESTAMP(timezone=False))
     reduced_trackpoints = Column("reduced_trackpoints", Text)
     extent = Column("extent", Geometry)
+    center = Column("center", postgresql.ARRAY(types.Float(), dimensions=1))
     uuid = Column("uuid", postgresql.UUID, unique=True)
     trackpoints = relationship("Trackpoint", backref="tracks", order_by="desc(Trackpoint.timestamp)")
     #reduced_trackpoints = relationship("ReducedTrackpoints", backref="tracks")
@@ -155,7 +160,7 @@ class Track(Base):
 
     def __init__(self, etappe, mode, distance, timespan, trackpoint_count,
                 start_timestamp, end_timestamp, trackpoints, epsilon, 
-                extent=None, uuid=str(uuidlib.uuid4())):
+                extent=None, center=None, uuid=str(uuidlib.uuid4())):
         self.etappe = etappe.id
         self.distance = distance
         self.mode = mode
@@ -165,6 +170,7 @@ class Track(Base):
         self.end_timestamp = end_timestamp
         self.reduced_trackpoints = reduce_trackpoints(trackpoints, epsilon)
         self.extent = extent
+        self.center = center
         self.uuid = uuid
 
     def reprJSON(self): #returns own columns only

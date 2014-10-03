@@ -103,17 +103,20 @@ def get_features(tracks, session, zoomlevel):
 
 
 
-def query_features(query, branch, geotype=None, features=None, element=None):
+def query_features(query, branch, geotype=None, features=None, session=list(), type=None):
     if query.count() > 0 and branch == False:
         elements_contained=list()
         for element in query.all():
-            feature = GeoJSON(geotype = geotype, coordinates=json.loads(element.reduced_trackpoints), zoomlevel='low', center='72.9211072, 33.7250752')
-            feature = feature.jsonify_feature()
-            features.append(feature)
             elements_contained.append(element.id)
-        return True, features, elements_contained
+            log.debug(session)
+            if element.id not in session:
+                log.debug('{0},{1},{2}'.format(geotype,element.reduced_trackpoints,element.center))
+                feature = GeoJSON(geotype = geotype, coordinates=json.loads(element.reduced_trackpoints), zoomlevel=type+' '+str(element.id), center=element.center)
+                feature = feature.jsonify_feature()
+                features.append(feature)
+        return True, features, elements_contained, list()
     if query.count() > 0 and branch == True:
         elements = query.all()
-        return True, elements, list()
+        return True, features, list(), elements
     else:
-        return False,features, list()
+        return False,features, list(), list()

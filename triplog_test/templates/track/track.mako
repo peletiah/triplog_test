@@ -14,7 +14,7 @@
 // --------------------------------------------
       var styleBike = new ol.style.Style({
                 stroke: new ol.style.Stroke({
-                  color: 'rgba(255,0,0,0.4)',
+                  color: 'rgba(255,0,0,0.2)',
                   width: 4
                 })
               })
@@ -132,55 +132,14 @@ var overlay = new ol.Overlay({
 // --------------------------------------------
 
 
-
-//var extent_old;
-//
-//      var vectorSource = new ol.source.ServerVector({
-//        format: new ol.format.GeoJSON(),
-//        loader: function(extent, resolution, projection) {
-//          zoomlevel = view.getZoom()
-//          extent = view.calculateExtent(map.getSize())
-//          if (JSON.stringify(extent) != JSON.stringify(extent_old)) {
-//            bottomXY = ol.proj.transform([extent[0], extent[1]], 'EPSG:3857', 'EPSG:4326')
-//            topXY = ol.proj.transform([extent[2], extent[3]], 'EPSG:3857', 'EPSG:4326')
-//            minx = bottomXY[0]
-//            miny = bottomXY[1]
-//            maxx = topXY[0]
-//            maxy = topXY[1]
-//            var url = '/features_in_extent?extent='+maxx+','+maxy+','+minx+','+miny+'&zoomlevel='+zoomlevel
-//            console.log(url)
-//            $.ajax({
-//              url: url,
-//              dataType: 'jsonp'
-//            });
-//          };
-//          extent_old = extent;
-//        },
-//        strategy: ol.loadingstrategy.createTile(new ol.tilegrid.XYZ({
-//          maxZoom: 19
-//        })),
-//        projection: 'EPSG:3857'
-//      });
-//       
-//      var loadFeatures = function(response) {
-//        vectorSource.addFeatures(vectorSource.readFeatures(response));
-//      };
-// 
-//      var features = new ol.layer.Vector({
-//        source: vectorSource,
-//        style: getStyle
-//      });
-
-
 // MAP SETUP
 // --------------------------------------------
 
 
 
-
       var view = new ol.View({
-          center: ol.proj.transform([52.0392288, 35.7925984], 'EPSG:4326', 'EPSG:3857'),
-          zoom: 3
+          center: [5719495.643944736, 4335033.122424604],
+          zoom: 8
         });
 
       var map = new ol.Map({
@@ -192,8 +151,10 @@ var overlay = new ol.Overlay({
       });
 
 
-// FETCH FEATURES AFTER MAP MOVE
-      map.on('moveend', function() {
+
+
+
+var fetch_geojson = function() {
         zoomlevel = view.getZoom();
         extent = view.calculateExtent(map.getSize())
         bottomXY = [extent[0], extent[1]]
@@ -206,49 +167,43 @@ var overlay = new ol.Overlay({
         //console.log('POLYGON(('+maxx+' '+maxy+', '+ maxx+' '+miny+', '+minx+' '+miny+', '+minx+' '+maxy+', '+maxx+' '+maxy+'))')
         //console.log(zoomlevel)
         console.log('/features_in_extent?extent='+maxx+','+maxy+','+minx+','+miny+'&zoomlevel='+zoomlevel)
-        source = new ol.source.GeoJSON({
+        var newsource = new ol.source.GeoJSON({
             projection: 'EPSG:3857',
             url: '/features_in_extent?extent='+maxx+','+maxy+','+minx+','+miny+'&zoomlevel='+zoomlevel
           })
 
 
-        
-        features = new ol.layer.Vector({
-          source: source, 
-          style: getStyle,
-        });
+
+        return newsource
+    };
 
 
 
-        map.addLayer(features)
+// FETCH FEATURES AFTER MAP MOVE
 
-      //features.setVisible(false)
-      //if ((zoomlevel > 5) && (zoomlevel <= 10)) {
-      //    features.setVisible(true)
-      //};
+    var features = fetch_geojson()
+    var tracks = new ol.layer.Vector({
+        source: features,
+        style: styleBike,
+    })
+    map.addLayer(tracks)
 
-
-//        zoom_low = 5
-//        zoom_medium = 10
-//        if (zoomlevel <= zoom_low) {
-//          zoomlevel = 'low'
-//        } else if ((zoomlevel > zoom_low) && (zoomlevel <= zoom_medium)) {
-//          zoomlevel = 'medium'
-//        } else if (zoomlevel > zoom_medium) {
-//          zoomlevel = 'high'
-//        };
-//
-//      map.getLayers().forEach( function(e) {
-//        try {
-//          console.log(zoomlevel)
-//          e.getSource().getFeatures().forEach( function(p) {
-//            console.log(p)
-//          })
-//        }
-//        catch(err) {}
-//      });
+    map.on('moveend', function() {
+          console.log('map moveend')
+          map.getLayers().forEach( function(e) {
+            try {
+              //e.getSource().getFeatures().forEach( function(p) {
+                newsource = fetch_geojson()
+                newsource.on('change', function () {
+                  if (newsource.getState() == 'ready') {
+                    features.addFeatures(newsource.getFeatures())
+                  }
+                })
+              //})
+            }
+            catch(err) {console.log(err)}
+          });
     });
-
 
 
 // ZOOM TO SELECTION AND SHOW POPUP
@@ -267,7 +222,7 @@ var overlay = new ol.Overlay({
           resolution: map.getView().getResolution(),
           start: start,
         });
-        console.log(e.element.getProperties())
+        type = e.element.getProperties().zoomlevel
         map.beforeRender(pan, zoom);
         f_extent = e.element.p.geometry.extent
         bottomXY_L = [f_extent[0], f_extent[1]]
@@ -275,16 +230,10 @@ var overlay = new ol.Overlay({
         bottomXY_R = [f_extent[2], f_extent[1]]
         topXY_L = [f_extent[0], f_extent[3]]
         map.getView().fitExtent(e.element.p.geometry.extent, map.getSize());
-        var coordinate = ol.proj.transform(e.element.get('center_point'), 'EPSG:4326', 'EPSG:3857');
-        overlay.setPosition(coordinate);
-        content.innerHTML = '<code> ID: ' + e.element.p.id + '</code>' +
-                            '<p><code>' + e.element.p.distance + '</code></p>' +
-                            '<p><code>' + e.element.get('center_point') + '</code></p>' + 
-                            '<p><code> topXY_R: ' + ol.proj.transform(topXY_R, 'EPSG:3857', 'EPSG:4326') + '</code></p>' + 
-                            '<p><code> topXY_L: ' + ol.proj.transform(topXY_L, 'EPSG:3857', 'EPSG:4326') + '</code></p>' + 
-                            '<p><code> bottomXY_R: ' + ol.proj.transform(bottomXY_R, 'EPSG:3857', 'EPSG:4326') + '</code></p>' + 
-                            '<p><code> bottomXY_L: ' + ol.proj.transform(bottomXY_L, 'EPSG:3857', 'EPSG:4326') + '</code></p>'; 
-                            '<p><code> bottomXY_L: ' + ol.proj.transform(bottomXY_L, 'EPSG:3857', 'EPSG:4326') + '</code></p>'; 
+        center = e.element.getProperties().center
+        var coord = ol.proj.transform([center[0], center[1]], 'EPSG:4326', 'EPSG:3857')
+        overlay.setPosition(coord);
+        content.innerHTML = '<p><code>' + e.element.getProperties().zoomlevel + '</code></p>' 
         container.style.display = 'block';
       });
 

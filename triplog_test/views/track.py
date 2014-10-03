@@ -100,8 +100,14 @@ def features_in_extent(request):
     elif zoomlevel > zoom_medium:
         zoomlevel = 'high'
     
-    if zoomlevel not in session['features']:
-        session['features'][zoomlevel] = []
+    if 'tour' not in session['features']:
+        session['features']['tour'] = []
+    if 'etappe' not in session['features']:
+        session['features']['etappe'] = []
+    if 'track' not in session['features']:
+        session['features']['track'] = []
+
+
 
 
     maxx, maxy, minx, miny = request.GET.get('extent').split(',')
@@ -180,29 +186,45 @@ def features_in_extent(request):
 
     tours_contained_query = DBSession.query(Tour).filter(func.ST_Contains(viewport, Tour.extent))
     features = list()
-    has_features, features, tours_contained = maptools.query_features(tours_contained_query, False, 'MultiLineString', features) #Tours contained
-    tours_intersect_query = DBSession.query(Tour).filter(and_(func.ST_Intersects(viewport, Tour.extent), Tour.id.notin_(tours_contained)))
-    has_features, tours, tours_intersected = maptools.query_features(tours_intersect_query, branch=True)
-    if has_features:
-        log.debug('Tour intersects')
-        for tour in tours:
-            etappes_contained_query = DBSession.query(Etappe).filter(and_(func.ST_Contains(viewport, Etappe.extent), Etappe.tour == tour.id))
-            has_features, features, etappes_contained = maptools.query_features(etappes_contained_query, False, 'MultiLineString', features) #Etappes contained
-            etappes_intersect_query = DBSession.query(Etappe).filter(and_(func.ST_Intersects(viewport, Etappe.extent), Etappe.tour == tour.id, Etappe.id.notin_(etappes_contained)))
-            has_features, etappes, etappes_intersected = maptools.query_features(etappes_intersect_query, branch=True)
-            if has_features:
-                log.debug('Etappe intersects')
-                for etappe in etappes:
-                    tracks_query = DBSession.query(Track).filter(and_(
-                                or_(
-                                    func.ST_Contains(viewport, Track.extent),
-                                    func.ST_Intersects(viewport, Track.extent)
-                                ), Track.etappe == etappe.id
-                             ))        
-                    features = maptools.query_features(tracks_query, False, 'LineString', features)[1]
-        
-    elif len(features) == 0:
-        features = list()
+    has_features, features, tour_ids, tours = maptools.query_features(tours_contained_query, False, 'MultiLineString', features, session=session['features']['tour'], type='tour') #Tours contained
+    log.debug(tour_ids)
+    session['features']['tour'] = list(set(session['features']['tour'] + tour_ids))
+    log.debug(session['features']['tour'])
+
+
+
+    #tours_intersect_query = DBSession.query(Tour).filter(and_(func.ST_Intersects(viewport, Tour.extent), Tour.id.notin_(tour_ids)))
+    #has_features, features, tours_intersected, tours = maptools.query_features(tours_intersect_query, branch=True, features=features, type='tour')
+    #if has_features:
+    #    log.debug('Tour intersects')
+    #    for tour in tours:
+    #        etappes_contained_query = DBSession.query(Etappe).filter(and_(func.ST_Contains(viewport, Etappe.extent), Etappe.tour == tour.id))
+    #        has_features, features, etappe_ids, etappes = maptools.query_features(etappes_contained_query, False, 'MultiLineString', features, session['features']['etappe'], type='etappe') #Etappes contained
+    #        #log.debug(session['features']['etappe'])
+    #        session['features']['etappe'] = session['features']['etappe'] + etappe_ids
+    #        #log.debug(session['features']['etappe'])
+    #        etappes_intersect_query = DBSession.query(Etappe).filter(and_(
+    #                                                                func.ST_Intersects(viewport, Etappe.extent), 
+    #                                                                Etappe.tour == tour.id
+    #                                                                ))
+    #        has_features, features, etappes_ids, etappes = maptools.query_features(etappes_intersect_query, branch=True, features=features, type='etappe')
+    #        session['features']['etappe'] = session['features']['etappe'] + etappe_ids
+    #        log.debug(session['features']['etappe'])
+    #        if has_features:
+    #            log.debug('Etappe intersects')
+    #            for etappe in etappes:
+    #                tracks_query = DBSession.query(Track).filter(and_(
+    #                            or_(
+    #                                func.ST_Contains(viewport, Track.extent),
+    #                                func.ST_Intersects(viewport, Track.extent)
+    #                            ), 
+    #                            Track.etappe == etappe.id
+    #                         ))        
+    #                has_features, features, track_ids, tracks = maptools.query_features(tracks_query, False, 'LineString', features, type='track')
+    #                session['features']['track'] = session['features']['track'] + track_ids
+    #    
+    #elif len(features) == 0:
+    #    features = list()
     #log.debug(len(features))
     if len(features) > 0:
         session['counter']=session['counter']+1

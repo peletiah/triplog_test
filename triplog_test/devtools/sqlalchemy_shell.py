@@ -49,7 +49,7 @@ class SQLAlchemyShell(InteractiveConsole):
         readline.write_history_file(histfile)
 
 
-engine=engine_from_config({'sqlalchemy.url':'postgresql://poab:eflavubOp0@localhost/triplog_test'}, 'sqlalchemy.')
+engine=engine_from_config({'sqlalchemy.url':'postgresql://poab:eflavubOp0@localhost/triplog_small'}, 'sqlalchemy.')
 #engine=engine_from_config({'sqlalchemy.url':'sqlite:///home/benke/env/poab_editor/poab_editor.db'}, 'sqlalchemy.')
 DBSession.configure(bind=engine)
 ic = SQLAlchemyShell()

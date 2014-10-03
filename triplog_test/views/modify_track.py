@@ -140,27 +140,34 @@ def add_track(request):
 @view_config(route_name='track_extent:trackid')
 def track_extent(request):
     if request.matchdict:
-        track_id = request.matchdict['trackid']
-        track = Track.get_track_by_id(track_id)
-        tracks = DBSession.query(Track).all()
-        for track in tracks:
+        #track_id = request.matchdict['trackid']
+        #track = Track.get_track_by_id(track_id)
+        #etappes = DBSession.query(Etappe).all()
+        tours = DBSession.query(Tour).all()
+        #tracks = DBSession.query(Track).all()
+        for tour in tours:
             trkpts = list()
-            for pt in track.trackpoints:
-                trkpts.append([pt.longitude,pt.latitude])
-            maxx,maxy = numpy.max(trkpts, axis=0)
-            minx,miny = numpy.min(trkpts, axis=0)
-            extent = u'POLYGON(( \
-                                {maxx} {maxy}, \
-                                {maxx} {miny}, \
-                                {minx} {miny}, \
-                                {minx} {maxy}, \
-                                {maxx} {maxy}))'.format( \
-                                maxx=maxx, maxy=maxy, minx=minx, miny=miny)
-            track.extent = DBSession.query(select([func.ST_AsText(func.ST_Transform(func.ST_GeomFromText(extent, 4326),3857))]).label("extent")).one()[0]
-            log.debug(track.extent)
+            for etappe in tour.etappes:
+                for track in etappe.tracks:
+                    trkpts = list()
+                    for pt in track.trackpoints:
+                        trkpts.append([pt.latitude,pt.longitude])
+                    log.debug(track.id)
+                    #maxx,maxy = numpy.max(trkpts, axis=0)
+                    #minx,miny = numpy.min(trkpts, axis=0)
+                    #minx,miny = numpy.min(trkpts, axis=0)
+                    #extent = u'POLYGON(( \
+                    #                    {maxx} {maxy}, \
+                    #                    {maxx} {miny}, \
+                    #                    {minx} {miny}, \
+                    #                    {minx} {maxy}, \
+                    #                    {maxx} {maxy}))'.format( \
+                    #                    maxx=maxx, maxy=maxy, minx=minx, miny=miny)
+                    #track.extent = DBSession.query(select([func.ST_AsText(func.ST_Transform(func.ST_GeomFromText(extent, 4326),3857))]).label("extent")).one()[0]
+            tour.center = map(float, numpy.mean(trkpts, axis=0))
             DBSession.flush()
         
-    return Response(track.extent)
+    return Response(tour.extent)
 
 
 
@@ -172,12 +179,15 @@ def reduce_tracks(request):
         log.debug(epsilon)
         #track = Track.get_track_by_id(track_id)
         #tracks = DBSession.query(Track).filter(Track.id == track_id).all()
-        tracks = DBSession.query(Track).all()
-        # etappes = DBSession.query(Etappe).all()
-        #tours = DBSession.query(Tour).all()
-        for track in tracks:
-            rtp = reduce_trackpoints(track.trackpoints, 0.00002)
-            track.reduced_trackpoints = json.dumps(rtp)
+        #tracks = DBSession.query(Track).all()
+        #etappes = DBSession.query(Etappe).all()
+        tours = DBSession.query(Tour).all()
+        for tour in tours:
+            rtp = list()
+            for etappe in tour.etappes:
+                for track in etappe.tracks:
+                    rtp.append(reduce_trackpoints(track.trackpoints, 0.005))
+            tour.reduced_trackpoints = json.dumps(rtp)
             DBSession.flush()
         
     return Response('OK')
