@@ -109,7 +109,7 @@ def get_features(tracks, session, zoomlevel):
 # If branch is "False", we return JSON-features to display them on the map. We only return
 # features of elements which are not in the session-list (B/c they already exist on the map)
 
-def query_features(query, branch, geotype=None, features=None, session=list(), type=None):
+def query_features(query, branch, features=None, session=list(), type=None):
     if query.count() > 0 and branch == False:
         element_id_list=list()
         elements = query.all()
@@ -120,7 +120,7 @@ def query_features(query, branch, geotype=None, features=None, session=list(), t
 
             if element.id not in session:
                 #log.debug('{0},{1},{2}'.format(geotype,element.reduced_trackpoints,element.center))
-                feature = GeoJSON(geotype = geotype, coordinates=json.loads(element.reduced_trackpoints), layer=type, center=element.center)
+                feature = GeoJSON(coordinates=json.loads(element.reduced_trackpoints), level=type, properties=element.reprGeoJSON())
                 feature = feature.jsonify_feature()
                 features.append(feature)
 

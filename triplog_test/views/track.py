@@ -184,7 +184,7 @@ def features_in_extent(request):
 
     features = list()
     tours_contained_query = DBSession.query(Tour).filter(func.ST_Contains(viewport, Tour.extent))
-    features, tour_ids, tours = maptools.query_features(tours_contained_query, False, 'MultiLineString', features, session=session['features']['tour'], type='tour') #Tours contained
+    features, tour_ids, tours = maptools.query_features(tours_contained_query, False, features, session=session['features']['tour'], type='tour') #Tours contained
     session['features']['tour'] = list(
                                         set(session['features']['tour'] + tour_ids)
                                     )
@@ -196,7 +196,7 @@ def features_in_extent(request):
     if tour_id_list:
         for tour in tours:
             etappes_contained_query = DBSession.query(Etappe).filter(and_(or_(func.ST_Overlaps(viewport, Etappe.extent), func.ST_Contains(viewport, Etappe.extent)), Etappe.tour.in_(tour_id_list)))
-            features, etappe_ids, etappes = maptools.query_features(etappes_contained_query, False, 'MultiLineString', features, session['features']['etappe'], type='etappe') #Etappes contained
+            features, etappe_ids, etappes = maptools.query_features(etappes_contained_query, False, features, session['features']['etappe'], type='etappe') #Etappes contained
             session['features']['etappe'] = list(
                                                 set(session['features']['etappe'] + etappe_ids)
                                             )
@@ -217,7 +217,7 @@ def features_in_extent(request):
     #                            ), 
     #                            Track.etappe == etappe.id
     #                         ))        
-    #                features, track_ids, tracks = maptools.query_features(tracks_query, False, 'LineString', features, type='track')
+    #                features, track_ids, tracks = maptools.query_features(tracks_query, False, features, type='track')
     #                session['features']['track'] = session['features']['track'] + track_ids
     #    
     #elif len(features) == 0:

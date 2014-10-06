@@ -101,6 +101,16 @@ class Tour(Base):
         self.center = center
         self.uuid = uuid
 
+    def reprGeoJSON(self): #returns own columns only
+        start_timestamp = self.start_timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        end_timestamp = self.end_timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        children = [etappe.id for etappe in self.etappes]
+        return dict(id=self.id, name=self.name, description=self.description,
+                    start_timestamp=start_timestamp, end_timestamp=end_timestamp, 
+                    extent=self.extent, center=self.center, uuid=self.uuid,
+                    parent = None, children = children)
+
+
 
 class Etappe(Base):
     __tablename__ = 'etappe'
@@ -132,6 +142,16 @@ class Etappe(Base):
         self.extent = extent
         self.center = center
         self.uuid = uuid
+
+    def reprGeoJSON(self): #returns own columns only
+        start_timestamp = self.start_timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        end_timestamp = self.end_timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        children = [track.id for track in self.tracks]
+        return dict(id=self.id, name=self.name, description=self.description,
+                    start_timestamp=start_timestamp, end_timestamp=end_timestamp, 
+                    extent=self.extent, center=self.center, uuid=self.uuid,
+                    parent = self.tour, children = children)
+
 
 
 
@@ -177,9 +197,20 @@ class Track(Base):
         start_timestamp = self.start_timestamp.strftime("%Y-%m-%d %H:%M:%S")
         end_timestamp = self.end_timestamp.strftime("%Y-%m-%d %H:%M:%S")
         return dict(id=self.id, distance=str(self.distance),
-                    timespan=str(self.timespan), trackpoint_count=self.trackpoint_count, start_timestamp=start_timestamp, 
-                    end_timestamp=end_timestamp, uuid=self.uuid)
+                    timespan=str(self.timespan), trackpoint_count=self.trackpoint_count, 
+                    start_timestamp=start_timestamp, end_timestamp=end_timestamp, uuid=self.uuid)
                     #TODO:distance is a decimal, string is not a proper conversion
+
+
+    def reprGeoJSON(self): #returns own columns only
+        start_timestamp = self.start_timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        end_timestamp = self.end_timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        return dict(id=self.id, start_timestamp=start_timestamp, end_timestamp=end_timestamp, 
+                    extent=self.extent, center=self.center, uuid=self.uuid,
+                    parent = self.etappe, children = None)
+
+
+
 
     
     @classmethod
