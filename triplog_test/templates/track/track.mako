@@ -186,6 +186,12 @@ var fetchGeojson = function() {
 // FETCH FEATURES AFTER MAP MOVE
     map.on('moveend', function() {
           console.log('map moveend')
+          map.getLayers().forEach( function(e) {
+            try {
+              console.log(e.getSource().getFeatures())
+            }
+            catch(err) {}
+          })
           if (featureSource.getState() == 'ready') {
               newsource = fetchGeojson()
               newsource.on('change', function () {
