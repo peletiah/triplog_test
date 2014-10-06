@@ -154,55 +154,44 @@ var overlay = new ol.Overlay({
 
 
 
-var fetch_geojson = function() {
+var fetchGeojson = function() {
         zoomlevel = view.getZoom();
         extent = view.calculateExtent(map.getSize())
-        bottomXY = [extent[0], extent[1]]
-        topXY = [extent[2], extent[3]]
-        minx = bottomXY[0]
-        miny = bottomXY[1]
-        maxx = topXY[0]
-        maxy = topXY[1]
+        minx = extent[0]
+        miny = extent[1]
+        maxx = extent[2]
+        maxy = extent[3]
         //console.log(maxx,maxy,minx,miny)
         //console.log('POLYGON(('+maxx+' '+maxy+', '+ maxx+' '+miny+', '+minx+' '+miny+', '+minx+' '+maxy+', '+maxx+' '+maxy+'))')
-        //console.log(zoomlevel)
-        console.log('/features_in_extent?extent='+maxx+','+maxy+','+minx+','+miny+'&zoomlevel='+zoomlevel)
-        var newsource = new ol.source.GeoJSON({
+        console.log('/features_in_extent?extent='+maxx+','+maxy+','+minx+','+miny)
+        var featureSource = new ol.source.GeoJSON({
             projection: 'EPSG:3857',
-            url: '/features_in_extent?extent='+maxx+','+maxy+','+minx+','+miny+'&zoomlevel='+zoomlevel
+            url: '/features_in_extent?extent='+maxx+','+maxy+','+minx+','+miny
           })
 
-
-
-        return newsource
+        return featureSource
     };
 
 
 
-// FETCH FEATURES AFTER MAP MOVE
-
-    var features = fetch_geojson()
+    var featureSource = fetchGeojson()
     var tracks = new ol.layer.Vector({
-        source: features,
-        style: styleBike,
+       source: featureSource,
+       style: styleBike,
     })
     map.addLayer(tracks)
+        
 
+
+// FETCH FEATURES AFTER MAP MOVE
     map.on('moveend', function() {
           console.log('map moveend')
-          map.getLayers().forEach( function(e) {
-            try {
-              //e.getSource().getFeatures().forEach( function(p) {
-                newsource = fetch_geojson()
-                newsource.on('change', function () {
-                  if (newsource.getState() == 'ready') {
-                    features.addFeatures(newsource.getFeatures())
-                  }
-                })
-              //})
-            }
-            catch(err) {console.log(err)}
-          });
+          if (featureSource.getState() == 'ready') {
+              newsource = fetchGeojson()
+              newsource.on('change', function () {
+                featureSource.addFeatures(newsource.getFeatures())
+              })
+          }
     });
 
 

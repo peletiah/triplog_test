@@ -103,20 +103,38 @@ def get_features(tracks, session, zoomlevel):
 
 
 
+# Returns JSON-Features(features), element_ids(element_id_list) and DB-rows(elements) depending on input
+# If branch is "True", we are not interested in JSON-features or the current session, but need
+# element_id_list to query for the elements children later
+# If branch is "False", we return JSON-features to display them on the map. We only return
+# features of elements which are not in the session-list (B/c they already exist on the map)
+
 def query_features(query, branch, geotype=None, features=None, session=list(), type=None):
     if query.count() > 0 and branch == False:
-        elements_contained=list()
-        for element in query.all():
-            elements_contained.append(element.id)
-            log.debug(session)
+        element_id_list=list()
+        elements = query.all()
+
+        for element in elements:
+            element_id_list.append(element.id)
+            #log.debug(session)
+
             if element.id not in session:
-                log.debug('{0},{1},{2}'.format(geotype,element.reduced_trackpoints,element.center))
+                #log.debug('{0},{1},{2}'.format(geotype,element.reduced_trackpoints,element.center))
                 feature = GeoJSON(geotype = geotype, coordinates=json.loads(element.reduced_trackpoints), zoomlevel=type+' '+str(element.id), center=element.center)
                 feature = feature.jsonify_feature()
                 features.append(feature)
-        return True, features, elements_contained, list()
+
+        return features, element_id_list, elements
+
+
     if query.count() > 0 and branch == True:
+        element_id_list=list()
         elements = query.all()
-        return True, features, list(), elements
+
+        for element in elements:
+            element_id_list.append(element.id)
+
+        return features, element_id_list, elements
+
     else:
-        return False,features, list(), list()
+        return features, list(), list()
