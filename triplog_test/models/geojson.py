@@ -5,11 +5,11 @@ log = logging.getLogger(__name__)
 
 
 class GeoJSON():
-    def __init__(self, geotype, coordinates, center, zoomlevel):
+    def __init__(self, geotype, coordinates, center, layer):
         self.geotype = geotype
         self.coordinates = coordinates
         self.center = center
-        self.zoomlevel = zoomlevel
+        self.layer = layer
 
     def jsonify_feature(self):
         feature = (dict(
@@ -19,7 +19,7 @@ class GeoJSON():
                 coordinates=self.coordinates
             ),
             properties=dict(
-                zoomlevel = self.zoomlevel,
+                layer = self.layer,
                 center = self.center
             ),
             ))

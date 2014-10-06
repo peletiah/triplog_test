@@ -174,13 +174,21 @@ var fetchGeojson = function() {
 
 
 
-    var featureSource = fetchGeojson()
-    var tracks = new ol.layer.Vector({
-       source: featureSource,
-       style: styleBike,
-    })
-    map.addLayer(tracks)
-        
+var createLayer = function(feature) {
+  console.log(feature.getProperties())
+  var source = new ol.source.Vector({
+      features: [feature],
+      projection: 'EPSG:3857'
+  })
+  var tracks = new ol.layer.Vector({
+    source: source,
+    style: styleBike
+  })
+  map.addLayer(tracks)
+}
+
+    
+       
 
 
 // FETCH FEATURES AFTER MAP MOVE
@@ -192,12 +200,16 @@ var fetchGeojson = function() {
             }
             catch(err) {}
           })
-          if (featureSource.getState() == 'ready') {
-              newsource = fetchGeojson()
-              newsource.on('change', function () {
-                featureSource.addFeatures(newsource.getFeatures())
-              })
-          }
+          featureSource = fetchGeojson()
+          featureSource.on('change', function() {
+            if (featureSource.getState() == 'ready') {
+              if (featureSource.getFeatures().length > 0) {
+                featureSource.getFeatures().forEach( function(f) {
+                  createLayer(f)
+                })
+              }
+            }
+          });
     });
 
 

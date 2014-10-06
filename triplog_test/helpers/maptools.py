@@ -120,7 +120,7 @@ def query_features(query, branch, geotype=None, features=None, session=list(), t
 
             if element.id not in session:
                 #log.debug('{0},{1},{2}'.format(geotype,element.reduced_trackpoints,element.center))
-                feature = GeoJSON(geotype = geotype, coordinates=json.loads(element.reduced_trackpoints), zoomlevel=type+' '+str(element.id), center=element.center)
+                feature = GeoJSON(geotype = geotype, coordinates=json.loads(element.reduced_trackpoints), layer=type, center=element.center)
                 feature = feature.jsonify_feature()
                 features.append(feature)
 
