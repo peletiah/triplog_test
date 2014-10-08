@@ -226,6 +226,7 @@ def features_in_extent(request):
     if len(features) > 0:
         session['counter']=session['counter']+1
     #log.debug(session['counter'])
+    #track_json = Response(json.dumps(dict(type='FeatureCollection', features=features, crs=dict(type='name',properties=dict(name='urn:ogc:def:crs:OGC:1.3:CRS84')))))
     track_json = Response(json.dumps(dict(type='FeatureCollection', features=features)))
     track_json.content_type = 'application/json'
     return(track_json)

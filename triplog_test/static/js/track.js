@@ -159,21 +159,19 @@ var fetchGeojson = function() {
         return featureSource
     };
 
-//var fetchFeatures = function() {
-//        extent = view.calculateExtent(map.getSize())
-//        minx = extent[0]
-//        miny = extent[1]
-//        maxx = extent[2]
-//        maxy = extent[3]
-//        //console.log('/features_in_extent?extent='+maxx+','+maxy+','+minx+','+miny)
-//        $.ajax({
-//          url: '/features_in_extent?extent='+maxx+','+maxy+','+minx+','+miny
-//        }).done(function (data) {
-//          console.log(data)
-//          return data
-//        })
-//
-//    };
+var fetchFeatures = function() {
+        extent = view.calculateExtent(map.getSize())
+        minx = extent[0]
+        miny = extent[1]
+        maxx = extent[2]
+        maxy = extent[3]
+        //console.log('/features_in_extent?extent='+maxx+','+maxy+','+minx+','+miny)
+        call = $.ajax({
+          url: '/features_in_extent?extent='+maxx+','+maxy+','+minx+','+miny
+        })
+        return call
+        
+    };
 
 
 
@@ -188,7 +186,7 @@ var createLayer = function(feature) {
   console.log(feature.getProperties())
   layerType = feature.getProperties().level
   featureId = feature.getProperties().id
- // console.log(layerType)
+  console.log(layerType)
   var source = new ol.source.Vector({
       features: [feature],
       projection: 'EPSG:3857'
@@ -197,9 +195,10 @@ var createLayer = function(feature) {
       source: source,
       style: styleBike
     })
+  console.log(tracks[layerType][featureId])
   console.log(tracks[layerType])
+  console.log(tracks)
   map.addLayer(tracks[layerType][featureId])
-  return tracks
 }
 
     
@@ -209,23 +208,40 @@ var createLayer = function(feature) {
 // FETCH FEATURES AFTER MAP MOVE
     map.on('moveend', function() {
           console.log('map moveend')
-          featureSource = fetchGeojson()
-          featureSource.on('change', function() {
-            if (featureSource.getState() == 'ready') {
-              if (featureSource.getFeatures().length > 0) {
-                featureSource.getFeatures().forEach( function(f) {
-                  createLayer(f)
-                  console.log(typeof f.getProperties().parent)
-                  console.log(tracks)
-                  if (f.getProperties().parent !== null) {
-                    console.log('parent is '+f.getProperties().parent)
-                    console.log(tracks['tour'][f.getProperties().parent])
-                    tracks['tour'][f.getProperties().parent].setVisible(false)
-                  }
-                })
-              }            
+          fetchFeatures().done( function(response) {
+            var format = new ol.format.GeoJSON()
+            features = format.readFeatures(response)
+            console.log(features)
+            if (features.length > 0) {
+              features.forEach( function(feature) {
+                feature.getGeometry().transform('EPSG:4326', 'EPSG:3857')
+                createLayer(feature)
+                if (feature.getProperties().parent !== null) {
+                  console.log('parent is '+feature.getProperties().parent)
+                  console.log(tracks['tour'][feature.getProperties().parent])
+                  tracks['tour'][feature.getProperties().parent].setVisible(false)
+                }
+              })
             }
-          });
+            console.log(map.getLayers())
+          })
+          //featureSource = fetchGeojson()
+          //featureSource.on('change', function() {
+          //  if (featureSource.getState() == 'ready') {
+          //    if (featureSource.getFeatures().length > 0) {
+          //      featureSource.getFeatures().forEach( function(f) {
+          //        console.log(f)
+          //        createLayer(f)
+          //        console.log(tracks)
+          //        if (f.getProperties().parent !== null) {
+          //          console.log('parent is '+f.getProperties().parent)
+          //          console.log(tracks['tour'][f.getProperties().parent])
+          //          tracks['tour'][f.getProperties().parent].setVisible(false)
+          //        }
+          //      })
+          //    }            
+          //  }
+          //});
     });
 
 
