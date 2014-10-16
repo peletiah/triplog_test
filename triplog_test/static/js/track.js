@@ -24,18 +24,49 @@
 
       var styleClick = new ol.style.Style({
                   stroke: new ol.style.Stroke({
-                    color: 'rgba(30,107,148,0.7',
+                    color: 'rgba(30,107,148,0.7)',
                     pointRadius: 8,
                     width: 6
                   })
                 });
 
+      var styleRed = new ol.style.Style({
+            stroke: new ol.style.Stroke({
+                  color: 'rgba(255,0,0,0.4)',
+                  pointRadius: 4,
+                  width: 6
+                  })
+                });
 
-      var getStyle = function(feature, resolution) {
-          if (feature.get('mode') === 'bicycle') {
-            return [styleBike]
+      var styleBlue = new ol.style.Style({
+            stroke: new ol.style.Stroke({
+                  color: 'rgba(0,0,255,0.4)',
+                  pointRadius: 4,
+                  width: 6
+                  })
+                });
+
+      var styleGreen = new ol.style.Style({
+            stroke: new ol.style.Stroke({
+                  color: 'rgba(0,255,0,0.4)',
+                  pointRadius: 4,
+                  width: 6
+                  })
+                });
+
+
+
+
+      var getStyle = function(level) {
+          //return [styleRed]
+          if (level == 'tour') {
+            return [styleBlue]
+          } else if (level == 'etappe') {
+            return [styleGreen]
+          } else if (level == 'track') {
+            return [styleRed]
           } else {
-            return [styleMotor]
+            return [styleMoto]
           };
           }
 
@@ -116,10 +147,6 @@ var overlay = new ol.Overlay({
       var pan = new ol.interaction.DragPan({});
 
 
-// TESTING ServerVector
-// --------------------------------------------
-
-
 // MAP SETUP
 // --------------------------------------------
 
@@ -140,25 +167,6 @@ var overlay = new ol.Overlay({
 
 
 
-
-
-var fetchGeojson = function() {
-        extent = view.calculateExtent(map.getSize())
-        minx = extent[0]
-        miny = extent[1]
-        maxx = extent[2]
-        maxy = extent[3]
-        //console.log(maxx,maxy,minx,miny)
-        //console.log('POLYGON(('+maxx+' '+maxy+', '+ maxx+' '+miny+', '+minx+' '+miny+', '+minx+' '+maxy+', '+maxx+' '+maxy+'))')
-        console.log('/features_in_extent?extent='+maxx+','+maxy+','+minx+','+miny)
-        var featureSource = new ol.source.GeoJSON({
-            projection: 'EPSG:3857',
-            url: '/features_in_extent?extent='+maxx+','+maxy+','+minx+','+miny
-          })
-
-        return featureSource
-    };
-
 var fetchFeatures = function() {
         extent = view.calculateExtent(map.getSize())
         minx = extent[0]
@@ -175,73 +183,61 @@ var fetchFeatures = function() {
 
 
 
-
-
 var tracks = {}
 tracks['tour'] = {}
 tracks['etappe'] = {}
 tracks['track'] = {}
 
 var createLayer = function(feature) {
-  console.log(feature.getProperties())
-  layerType = feature.getProperties().level
+  level = feature.getProperties().level
   featureId = feature.getProperties().id
-  console.log(layerType)
   var source = new ol.source.Vector({
       features: [feature],
       projection: 'EPSG:3857'
   })
-  tracks[layerType][featureId] = new ol.layer.Vector({
-      source: source,
-      style: styleBike
-    })
-  console.log(tracks[layerType][featureId])
-  console.log(tracks[layerType])
-  console.log(tracks)
-  map.addLayer(tracks[layerType][featureId])
+  if (typeof tracks[level][featureId] === 'undefined') { //don't create duplicate layers
+    tracks[level][featureId] = new ol.layer.Vector({
+        source: source,
+        style: getStyle(level)
+      })
+    console.log(typeof tracks[level][featureId])
+    map.addLayer(tracks[level][featureId])
+  }
 }
 
     
-       
-
 
 // FETCH FEATURES AFTER MAP MOVE
     map.on('moveend', function() {
           console.log('map moveend')
           fetchFeatures().done( function(response) {
             var format = new ol.format.GeoJSON()
-            features = format.readFeatures(response)
-            console.log(features)
+            relatives = response[0]
+            features = format.readFeatures(response[1])
             if (features.length > 0) {
               features.forEach( function(feature) {
                 feature.getGeometry().transform('EPSG:4326', 'EPSG:3857')
                 createLayer(feature)
-                if (feature.getProperties().parent !== null) {
-                  console.log('parent is '+feature.getProperties().parent)
-                  console.log(tracks['tour'][feature.getProperties().parent])
-                  tracks['tour'][feature.getProperties().parent].setVisible(false)
-                }
               })
             }
-            console.log(map.getLayers())
+            levels = new Array('tour','etappe','track')
+            for (var i in levels) {
+              level = levels[i]
+              if (typeof relatives[level] !== 'undefined') {
+                relatives[level].forEach( function(id) {
+                  if (typeof tracks[level][id] !== 'undefined') {
+                    //console.log('hiding '+level+','+id)
+                    tracks[level][id].setVisible(false)
+                  }
+                })
+              }
+            }
+            relatives['self'].forEach( function(r) {
+              id = r['id']
+              level = r['level']
+              tracks[level][id].setVisible(true)
+            })
           })
-          //featureSource = fetchGeojson()
-          //featureSource.on('change', function() {
-          //  if (featureSource.getState() == 'ready') {
-          //    if (featureSource.getFeatures().length > 0) {
-          //      featureSource.getFeatures().forEach( function(f) {
-          //        console.log(f)
-          //        createLayer(f)
-          //        console.log(tracks)
-          //        if (f.getProperties().parent !== null) {
-          //          console.log('parent is '+f.getProperties().parent)
-          //          console.log(tracks['tour'][f.getProperties().parent])
-          //          tracks['tour'][f.getProperties().parent].setVisible(false)
-          //        }
-          //      })
-          //    }            
-          //  }
-          //});
     });
 
 

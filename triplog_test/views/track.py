@@ -88,16 +88,6 @@ def features_in_extent(request):
     if 'counter' not in session:
         session['counter'] = 1
 
-#    #- set zoomlevels
-#    zoom_low = 5
-#    zoom_medium = 10
-#    if zoomlevel <= zoom_low:
-#        zoomlevel = 'low'
-#    elif zoomlevel > zoom_low and zoomlevel <= zoom_medium:
-#        zoomlevel = 'medium'
-#    elif zoomlevel > zoom_medium:
-#        zoomlevel = 'high'
-    
     if 'tour' not in session['features']:
         session['features']['tour'] = []
     if 'etappe' not in session['features']:
@@ -119,115 +109,86 @@ def features_in_extent(request):
                 {minx} {maxy}, \
                 {maxx} {maxy}))'.format( \
                 maxx=maxx, maxy=maxy, minx=minx, miny=miny)
-#    log.debug(viewport)
     viewport = select([func.ST_GeomFromText(viewport, 4326)]).label("viewport")
 
  
     ## query tracks which are not yet loaded
         
- 
-#    if len(session['features'][zoomlevel]) > 0:
-#        tracks = DBSession.query(Track).filter(and_( \
-#                            or_(
-#                                func.ST_Intersects(viewport, Track.extent), \
-#                                func.ST_Contains(viewport, Track.extent) \
-#                            ), \
-#                            Track.id.notin_(session['features'][zoomlevel]))).all()
-#    else:
-#        tracks = DBSession.query(Track).filter(or_( \
-#                                func.ST_Intersects(viewport, Track.extent), \
-#                                func.ST_Contains(viewport, Track.extent) \
-#                            )).all()
-#
-
-
-#    q_tours_contained = DBSession.query(Tour).filter(func.ST_Contains(viewport, Tour.extent))
-#    q_tours_intersect = DBSession.query(Tour).filter(func.ST_Intersects(viewport, Tour.extent))
-#    ## get GeoJSON-features depending on zoomlevel
-#    features = list()
-#    if q_tours_contained.count() > 0:
-#        for tour in q_tours_contained.all():
-#            log.debug('Tour contained')
-#            feature = GeoJSON(geotype = 'MultiLineString', coordinates=json.loads(tour.reduced_trackpoints), zoomlevel='low', center='72.9211072, 33.7250752')
-#            feature = feature.jsonify_feature()
-#            features.append(feature)
-#    if q_tours_intersect.count() > 0:
-#        log.debug('Tour intersecting')
-#        for tour in q_tours_intersect.all():
-#            q_etappes_contained = DBSession.query(Etappe).filter(and_(func.ST_Contains(viewport, Etappe.extent), Etappe.tour == tour.id))
-#            q_etappes_intersect = DBSession.query(Etappe).filter(and_(func.ST_Intersects(viewport, Etappe.extent), Etappe.tour == tour.id))
-#            log.debug(q_etappes_intersect.count() > 0)
-#            if q_etappes_contained.count() > 0:
-#                log.debug('Etappe contained')
-#                for etappe in q_etappes_contained.all():
-#                    feature = GeoJSON(geotype = 'MultiLineString', coordinates=json.loads(etappe.reduced_trackpoints), zoomlevel='medium', center='72.9211072, 33.7250752')
-#                    feature = feature.jsonify_feature()
-#                    features.append(feature)
-#            if q_etappes_intersect.count() > 0:
-#                log.debug('Etappe intersecting')
-#                for etappe in q_etappes_intersect.all():
-#                    q_tracks = DBSession.query(Track).filter(and_(
-#                                or_(
-#                                    func.ST_Intersects(viewport, Track.extent),
-#                                    func.ST_Contains(viewport, Track.extent)
-#                                ), Track.etappe == etappe.id
-#                             ))
-#                    if q_tracks.count() > 0:
-#                        log.debug('Tracks found')
-#                        for track in q_tracks.all():
-#                            feature = GeoJSON(geotype = 'LineString', coordinates=json.loads(track.reduced_trackpoints), zoomlevel='high', center='72.9211072, 33.7250752')
-#                            feature = feature.jsonify_feature()
-#                            features.append(feature)
-#    else:
-#        features = list()
-
 
     features = list()
+    relatives = dict(tour=[], etappe=[],track=[], self=[])
+
+# /// FETCH TOURS IN VIEWPORT ///
+
     tours_contained_query = DBSession.query(Tour).filter(func.ST_Contains(viewport, Tour.extent))
-    features, tour_ids, tours = maptools.query_features(tours_contained_query, False, features, session=session['features']['tour'], type='tour') #Tours contained
+    features, relatives, tour_ids, tours = maptools.query_features(
+            tours_contained_query, False, features, relatives, session=session['features']['tour'], level='tour'
+            ) #Tours contained
     session['features']['tour'] = list(
-                                        set(session['features']['tour'] + tour_ids)
-                                    )
+            set(session['features']['tour'] + tour_ids)
+            )
 
 
+# /// FETCH ETAPPES IN VIEWPORT ///
 
-    tour_overlap_query = DBSession.query(Tour).filter(or_(func.ST_Overlaps(viewport, Tour.extent), func.ST_Contains(Tour.extent, viewport)))
-    features, tour_id_list, tours = maptools.query_features(tour_overlap_query, branch=True, features=features, type='tour')
+    tour_partial_query = DBSession.query(Tour).filter(or_(
+        func.ST_Overlaps(viewport, Tour.extent), 
+        func.ST_Contains(Tour.extent, viewport) # !!viewport is INSIDE of Tour.extent!!
+        ))
+    features, relatives, tour_id_list, tours = maptools.query_features(
+            tour_partial_query, branch=True, features=features, relatives=relatives,  level='tour'
+            )
     if tour_id_list:
-        for tour in tours:
-            etappes_contained_query = DBSession.query(Etappe).filter(and_(or_(func.ST_Overlaps(viewport, Etappe.extent), func.ST_Contains(viewport, Etappe.extent)), Etappe.tour.in_(tour_id_list)))
-            features, etappe_ids, etappes = maptools.query_features(etappes_contained_query, False, features, session['features']['etappe'], type='etappe') #Etappes contained
-            session['features']['etappe'] = list(
-                                                set(session['features']['etappe'] + etappe_ids)
-                                            )
-    #        etappes_intersect_query = DBSession.query(Etappe).filter(and_(
-    #                                                                func.ST_Intersects(viewport, Etappe.extent), 
-    #                                                                Etappe.tour == tour.id
-    #                                                                ))
-    #        features, etappe_id_list, etappes = maptools.query_features(etappes_intersect_query, branch=True, features=features, type='etappe')
-    #        session['features']['etappe'] = session['features']['etappe'] + etappe_ids
-    #        log.debug(session['features']['etappe'])
-    #        if tour_id_list:
-    #            log.debug('Etappe intersects')
-    #            for etappe in etappes:
-    #                tracks_query = DBSession.query(Track).filter(and_(
-    #                            or_(
-    #                                func.ST_Contains(viewport, Track.extent),
-    #                                func.ST_Intersects(viewport, Track.extent)
-    #                            ), 
-    #                            Track.etappe == etappe.id
-    #                         ))        
-    #                features, track_ids, tracks = maptools.query_features(tracks_query, False, features, type='track')
-    #                session['features']['track'] = session['features']['track'] + track_ids
-    #    
-    #elif len(features) == 0:
-    #    features = list()
-    #log.debug(len(features))
-    if len(features) > 0:
-        session['counter']=session['counter']+1
-    #log.debug(session['counter'])
+        # we need to limit the query to elements(etappe) that are children of
+        # the parent_partial-query above, otherwise we would return elements 
+        # fully contained in the same viewport as it's parent, 
+        # displaying both concurrently
+
+        etappes_contained_query = DBSession.query(Etappe).filter(and_(
+            or_(
+                func.ST_Overlaps(viewport, Track.extent),
+                func.ST_Contains(viewport, Etappe.extent),
+                ),
+                Etappe.tour.in_(tour_id_list)
+            ))
+        features, relatives, etappe_ids, etappes = maptools.query_features(
+                etappes_contained_query, False, features, relatives, session['features']['etappe'], level='etappe'
+                )
+        session['features']['etappe'] = list(
+                set(session['features']['etappe'] + etappe_ids)
+                )
+
+# /// FETCH TRACKS IN VIEWPORT ///
+        
+        etappes_partial_query = DBSession.query(Etappe).filter(
+            #or_(
+             #   func.ST_Overlaps(viewport, Etappe.extent), 
+                func.ST_Contains(Etappe.extent, viewport) # !!viewport is INSIDE of Etappe.extent
+            #)
+            )
+        features, relatives, etappe_id_list, etappes = maptools.query_features(
+                etappes_partial_query, branch=True, features=features, relatives=relatives, level='etappe'
+                )
+        if etappe_id_list:
+            tracks_contained_query = DBSession.query(Track).filter(and_(
+                        or_(
+                            func.ST_Overlaps(viewport, Track.extent),
+                            func.ST_Contains(viewport, Track.extent)
+                            ), 
+                        Track.etappe.in_(etappe_id_list)
+                        ))   
+            features, relatives, track_ids, tracks = maptools.query_features(
+                    tracks_contained_query, False, features, relatives, session['features']['track'], level='track'
+                    )
+            session['features']['track'] = list(
+                    set(session['features']['track'] + track_ids)
+                    )
+
+
+# /// RETURN FEATURES ///
+
     #track_json = Response(json.dumps(dict(type='FeatureCollection', features=features, crs=dict(type='name',properties=dict(name='urn:ogc:def:crs:OGC:1.3:CRS84')))))
-    track_json = Response(json.dumps(dict(type='FeatureCollection', features=features)))
+    track_json = Response(json.dumps([relatives, dict(type='FeatureCollection', features=features)]))
     track_json.content_type = 'application/json'
     return(track_json)
 

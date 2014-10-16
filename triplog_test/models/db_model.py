@@ -105,10 +105,15 @@ class Tour(Base):
         start_timestamp = self.start_timestamp.strftime("%Y-%m-%d %H:%M:%S")
         end_timestamp = self.end_timestamp.strftime("%Y-%m-%d %H:%M:%S")
         children = [etappe.id for etappe in self.etappes]
+        grandchildren = [track.id for track in sum([etappe.tracks for etappe in self.etappes],[])] #sum converts 2D-list to 1D
         return dict(id=self.id, name=self.name, description=self.description,
                     start_timestamp=start_timestamp, end_timestamp=end_timestamp, 
                     extent=self.extent, center=self.center, uuid=self.uuid,
-                    parent = None, children = children)
+                    level = 'tour', 
+                    grandparent = dict(level = None, id_list = None),
+                    parent = dict(level=None, id_list = None), 
+                    children = dict(level='etappe', id_list = children), 
+                    grandchildren = dict(level='track', id_list = grandchildren))
 
 
 
@@ -150,7 +155,11 @@ class Etappe(Base):
         return dict(id=self.id, name=self.name, description=self.description,
                     start_timestamp=start_timestamp, end_timestamp=end_timestamp, 
                     extent=self.extent, center=self.center, uuid=self.uuid,
-                    parent = self.tour, children = children)
+                    level = 'etappe', 
+                    grandparent = dict(level = None, id_list = None),
+                    parent = dict(level = 'tour', id_list = [self.tour]), 
+                    children = dict(level = 'track', id_list = children),
+                    grandchildren = dict(level=None, id_list = None))
 
 
 
@@ -205,9 +214,14 @@ class Track(Base):
     def reprGeoJSON(self): #returns own columns only
         start_timestamp = self.start_timestamp.strftime("%Y-%m-%d %H:%M:%S")
         end_timestamp = self.end_timestamp.strftime("%Y-%m-%d %H:%M:%S")
-        return dict(id=self.id, start_timestamp=start_timestamp, end_timestamp=end_timestamp, 
-                    extent=self.extent, center=self.center, uuid=self.uuid,
-                    parent = self.etappe, children = None)
+        grandparent = DBSession.query(Etappe.tour).filter(Etappe.id == self.etappe).one()[0] #get tour.id
+        return dict(id=self.id, start_timestamp=start_timestamp, 
+                    end_timestamp=end_timestamp, extent=self.extent, 
+                    center=self.center, uuid=self.uuid, level = 'track',
+                    grandparent = dict(level = 'tour', id_list = [grandparent]),
+                    parent = dict(level = 'etappe', id_list = [self.etappe]) , 
+                    children = dict(level = None, id_list = None),
+                    grandchildren = dict(level=None, id_list = None))
 
 
 
