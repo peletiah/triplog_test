@@ -31,5 +31,7 @@ def main(global_config, **settings):
     config.add_route('track_extent', '/track_extent')
     config.add_route('features_in_extent', '/features_in_extent')
     config.add_route('reduce_trackpoints', '/reduce_trackpoints')
+    config.add_route('get_center', '/get_center')
+    config.add_route('map_popup', '/map_popup')
     config.scan()
     return config.make_wsgi_app()

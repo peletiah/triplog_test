@@ -12,8 +12,9 @@ from triplog_test.models.db_model import (
     Tour,
     Etappe,
     Track,
-    ReducedTrackpoints,
-    Trackpoint
+    Trackpoint,
+    Image,
+    Log
     )
 
 from triplog_test.models.geojson import GeoJSON
@@ -34,6 +35,26 @@ from decimal import Decimal, ROUND_HALF_UP
 
 import logging
 log = logging.getLogger(__name__)
+
+
+
+@view_config(route_name = 'map_popup',
+            renderer = 'track/popup.mako'
+            )
+def map_popup(request):
+    id = request.GET.get('id')
+    level = request.GET.get('level')
+    tour = etappe = track = None
+    if level == 'tour':
+        tour = DBSession.query(Tour).filter(Tour.id == id).one()
+    elif level == 'etappe':
+        etappe = DBSession.query(Etappe).filter(Etappe.id == id).one()
+    elif level == 'track':
+        track = DBSession.query(Track).filter(Track.id == id).one()
+
+    return {'tour' : tour, 'etappe' : etappe, 'track' : track}
+
+
 
 
 @view_config(route_name='track_json',
@@ -61,8 +82,6 @@ def track_view(request):
     session = request.session
     if 'features' in session:
         session['features'] = {} #page has been reloaded, so features have to be reloaded too
-    if 'counter' in session:
-        session['counter'] = 0 #page has been reloaded, so features have to be reloaded too
  
     #tour = DBSession.query(Tour).one()
     #features = list()
@@ -84,9 +103,6 @@ def features_in_extent(request):
     session = request.session
     if 'features' not in session:
         session['features'] = {}
-
-    if 'counter' not in session:
-        session['counter'] = 1
 
     if 'tour' not in session['features']:
         session['features']['tour'] = []
@@ -173,7 +189,8 @@ def features_in_extent(request):
             tracks_contained_query = DBSession.query(Track).filter(and_(
                         or_(
                             func.ST_Overlaps(viewport, Track.extent),
-                            func.ST_Contains(viewport, Track.extent)
+                            func.ST_Contains(viewport, Track.extent),
+                            func.ST_Contains(Track.extent, viewport)
                             ), 
                         Track.etappe.in_(etappe_id_list)
                         ))   

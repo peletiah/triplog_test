@@ -56,6 +56,19 @@ def now():
     return datetime.datetime.now()
 
 
+
+#n-n-link between log and image tables
+log_image_table = Table('log_image', Base.metadata,
+    Column('log_id', Integer, ForeignKey('log.id', onupdate="CASCADE", ondelete="CASCADE"), primary_key=True),
+    Column('image_id', Integer, ForeignKey('image.id',onupdate="CASCADE", ondelete="CASCADE"), primary_key=True),
+    UniqueConstraint('log_id', 'image_id', name='log_id_image_id'))
+
+log_track_table = Table('log_track', Base.metadata,
+    Column('log_id', Integer, ForeignKey('log.id', onupdate="CASCADE", ondelete="CASCADE"), primary_key=True),
+    Column('track_id', Integer, ForeignKey('track.id',onupdate="CASCADE", ondelete="CASCADE"), primary_key=True),
+    UniqueConstraint('log_id', 'track_id', name='log_id_track_id'))
+
+
 class Geometry(UserDefinedType):
     def get_col_spec(self):
         return "GEOMETRY"
@@ -67,14 +80,31 @@ class Geometry(UserDefinedType):
         return func.ST_AsText(col, type_=self)
 
 
-class Mode(Base):
-    __tablename__ = 'mode'
-    id = Column(Integer, primary_key=True)
-    type = Column("type", Text, unique=True)
-    track = relationship("Track", backref="mode_ref", order_by="desc(Track.start_timestamp)")
 
-    def __init__(self, type):
-        self.type = type
+class Log(Base):
+    __tablename__ = 'log'
+    id = Column("id", Integer, primary_key=True, autoincrement=True)
+    infomarker = Column("infomarker", types.Integer, ForeignKey('trackpoint.id'))
+    topic = Column("topic", types.UnicodeText)
+    content = Column("content", types.UnicodeText)
+    author = Column(Integer, ForeignKey('author.id',onupdate="CASCADE", ondelete="CASCADE"))
+    etappe = Column(Integer, ForeignKey('etappe.id', onupdate="CASCADE", ondelete="CASCADE"))
+    created = Column("created", types.TIMESTAMP(timezone=False),default=timetools.now())
+    published = Column("published", types.TIMESTAMP(timezone=False),default=timetools.now())
+    uuid = Column("uuid", postgresql.UUID, unique=True)
+    image = relationship('Image', secondary=log_image_table, backref='logs')
+    track = relationship('Track', secondary=log_track_table, backref='logs')
+
+    def __init__(self, infomarker, topic, content, author, etappe, created, published, uuid):
+        self.infomarker = infomarker
+        self.topic = topic
+        self.content = content
+        self.author = author
+        self.etappe = etappe
+        self.created = created
+        self.published = published
+        self.uuid = uuid
+
 
 
 class Tour(Base):
@@ -257,24 +287,16 @@ class Track(Base):
             return None
 
 
-class ReducedTrackpoints(Base):
-    __tablename__ = 'reduced_trackpoints'
-    id = Column("id", Integer, primary_key=True, autoincrement=True)
-    track = Column("track", types.Integer, ForeignKey('track.id'))
-    reduced_trackpoints = Column("reduced_trackpoints", postgresql.ARRAY(types.Float(), dimensions=2))
-    epsilon = Column("epsilon", types.Numeric(11,4))
-    zoomlevel = Column("zoomlevel", Text)
-    __table_args__ = (
-        UniqueConstraint("track", "epsilon", name="reduced_trackpoints_track_epsilon"),
-        {}
-        )
 
+class Mode(Base):
+    __tablename__ = 'mode'
+    id = Column(Integer, primary_key=True)
+    type = Column("type", Text, unique=True)
+    track = relationship("Track", backref="mode_ref", order_by="desc(Track.start_timestamp)")
 
-    def __init__(self, track, trackpoints, epsilon, zoomlevel):
-        self.track = track.id
-        self.reduced_trackpoints = reduce_trackpoints(trackpoints, epsilon)
-        self.epsilon = epsilon
-        self.zoomlevel = zoomlevel
+    def __init__(self, type):
+        self.type = type
+
 
 
 class Trackpoint(Base):
@@ -326,4 +348,53 @@ class Trackpoint(Base):
         except Exception, e:
             print "Error retrieving trackpoint %s: ",e
             return None
+
+
+
+
+class Image(Base):
+    __tablename__ = 'image'
+    id = Column(Integer, primary_key=True)
+    name = Column("name", types.UnicodeText)
+    location = Column("location", types.UnicodeText)
+    title = Column("title", types.UnicodeText)
+    comment = Column("comment", types.UnicodeText)
+    alt = Column("alt", types.UnicodeText)
+    aperture = Column(Text)
+    shutter = Column(Text)
+    focal_length = Column(Text)
+    iso = Column(Text)
+    timestamp_original = Column(types.TIMESTAMP(timezone=False))
+    hash = Column("hash", types.UnicodeText)
+    hash_large = Column("hash_large", types.UnicodeText) #hash of the image with 990px width
+    #author = Column(Integer, ForeignKey('author.id',onupdate="CASCADE", ondelete="CASCADE"))
+    trackpoint = Column(Integer, ForeignKey('trackpoint.id',onupdate="CASCADE", ondelete="CASCADE"))
+    last_change = Column(types.TIMESTAMP(timezone=False),default=timetools.now())
+    published = Column(types.TIMESTAMP(timezone=False))
+    uuid = Column("uuid", postgresql.UUID, unique=True)
+    log = relationship('Log', secondary=log_image_table, backref='images')
+    __table_args__ = (
+        UniqueConstraint('location', 'name', name='image_location_name'),
+        {}
+        )
+
+    def __init__(self, name, location, title, comment, alt, aperture, shutter, focal_length, iso, \
+                timestamp_original, hash, hash_large, author, trackpoint, uuid, last_change=timetools.now(), published=None):
+        self.name = name
+        self.location = location
+        self.title = title
+        self.comment = comment
+        self.alt = alt
+        self.aperture = aperture
+        self.shutter = shutter
+        self.focal_length = focal_length
+        self.iso = iso
+        self.timestamp_original = timestamp_original
+        self.hash = hash
+        self.hash_large = hash_large
+        self.author = author
+        self.trackpoint = trackpoint
+        self.uuid = uuid
+        self.last_change = last_change
+        self.published = published
 

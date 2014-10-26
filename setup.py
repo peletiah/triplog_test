@@ -16,7 +16,9 @@ requires = [
     'waitress',
     'psycopg2',
     'lxml',
-    'numpy'
+    'numpy',
+    'nose',
+    'BeautifulSoup'
     ]
 
 setup(name='triplog_test',
