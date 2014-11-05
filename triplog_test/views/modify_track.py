@@ -200,83 +200,90 @@ def get_center(request):
     tours = DBSession.query(Tour).all()
     for tour in tours:
         distance = 0
+        #get the total distance of tour
         for etappe in tour.etappes:
             for track in etappe.tracks:
-                last_trkpt = [track.trackpoints[0].latitude,track.trackpoints[0].longitude]
+                previous_trkpt = [track.trackpoints[0].latitude,track.trackpoints[0].longitude]
                 for trkpt in track.trackpoints:
                     curr_trkpt = [trkpt.latitude,trkpt.longitude]
                     dist = VincentyDistance()
-                    distance = distance + dist.measure(last_trkpt,curr_trkpt)
-                    last_trkpt = curr_trkpt
+                    distance = distance + dist.measure(previous_trkpt,curr_trkpt)
+                    previous_trkpt = curr_trkpt
                 #log.debug('old : {0}, new: {1}'.format(old_distance, distance))
         halfway = distance/2
         distance = 0
+        #find the trackpoint that is closest to distance/2
         for etappe in tour.etappes:
             for track in etappe.tracks:
-                last_trkpt = [track.trackpoints[0].latitude,track.trackpoints[0].longitude]
+                previous_trkpt = [track.trackpoints[0].latitude,track.trackpoints[0].longitude]
                 for trkpt in track.trackpoints:
                     curr_trkpt = [trkpt.latitude,trkpt.longitude]
                     dist = VincentyDistance()
-                    log.debug(trkpt.timestamp)
+                    #log.debug(trkpt.timestamp)
                     if distance <= halfway:
-                        distance = distance + dist.measure(last_trkpt,curr_trkpt)
-                        last_trkpt = curr_trkpt
-                        center=[last_trkpt[1], last_trkpt[0]]
-                        log.debug('{0}, distance: {1}, halfway {2}'.format(distance > halfway, distance,halfway))
-        tour.center = center
-        log.debug(center)
+                        distance = distance + dist.measure(previous_trkpt,curr_trkpt)
+                        previous_trkpt = curr_trkpt
+                        #center=[previous_trkpt[1], previous_trkpt[0]]
+                        log.debug(trkpt.latitude)
+                        log.debug(previous_trkpt[0])
+                        center=trkpt.id
+                        #log.debug('{0}, distance: {1}, halfway {2}'.format(distance > halfway, distance,halfway))
+        tour.center_id = center
+        #log.debug(center)
 
     etappes = DBSession.query(Etappe).all()
     for etappe in etappes:
         distance = 0
         for track in etappe.tracks:
-            last_trkpt = [track.trackpoints[0].latitude,track.trackpoints[0].longitude]
+            previous_trkpt = [track.trackpoints[0].latitude,track.trackpoints[0].longitude]
             for trkpt in track.trackpoints:
                 curr_trkpt = [trkpt.latitude,trkpt.longitude]
                 dist = VincentyDistance()
-                distance = distance + dist.measure(last_trkpt,curr_trkpt)
-                last_trkpt = curr_trkpt
+                distance = distance + dist.measure(previous_trkpt,curr_trkpt)
+                previous_trkpt = curr_trkpt
             #log.debug('old : {0}, new: {1}'.format(old_distance, distance))
         halfway = distance/2
         distance = 0
         for track in etappe.tracks:
-            last_trkpt = [track.trackpoints[0].latitude,track.trackpoints[0].longitude]
+            previous_trkpt = [track.trackpoints[0].latitude,track.trackpoints[0].longitude]
             for trkpt in track.trackpoints:
                 curr_trkpt = [trkpt.latitude,trkpt.longitude]
                 dist = VincentyDistance()
-                log.debug(trkpt.timestamp)
+                #log.debug(trkpt.timestamp)
                 if distance <= halfway:
-                    distance = distance + dist.measure(last_trkpt,curr_trkpt)
-                    last_trkpt = curr_trkpt
-                    center=[last_trkpt[1], last_trkpt[0]]
-                    log.debug('{0}, distance: {1}, halfway {2}'.format(distance > halfway, distance,halfway))
-        etappe.center = center
+                    distance = distance + dist.measure(previous_trkpt,curr_trkpt)
+                    previous_trkpt = curr_trkpt
+                    #center=[previous_trkpt[1], previous_trkpt[0]]
+                    center=trkpt.id
+                    log.debug(trkpt.id)
+                    #log.debug('{0}, distance: {1}, halfway {2}'.format(distance > halfway, distance,halfway))
+        etappe.center_id = center
 
     tracks = DBSession.query(Track).all()
     for track in tracks:
         distance = 0
-        last_trkpt = [track.trackpoints[0].latitude,track.trackpoints[0].longitude]
+        previous_trkpt = [track.trackpoints[0].latitude,track.trackpoints[0].longitude]
         for trkpt in track.trackpoints:
             curr_trkpt = [trkpt.latitude,trkpt.longitude]
             dist = VincentyDistance()
-            distance = distance + dist.measure(last_trkpt,curr_trkpt)
-            last_trkpt = curr_trkpt
+            distance = distance + dist.measure(previous_trkpt,curr_trkpt)
+            previous_trkpt = curr_trkpt
         #log.debug('old : {0}, new: {1}'.format(old_distance, distance))
         halfway = distance/2
         distance = 0
-        last_trkpt = [track.trackpoints[0].latitude,track.trackpoints[0].longitude]
+        previous_trkpt = [track.trackpoints[0].latitude,track.trackpoints[0].longitude]
         for trkpt in track.trackpoints:
             curr_trkpt = [trkpt.latitude,trkpt.longitude]
             dist = VincentyDistance()
-            log.debug(trkpt.timestamp)
+            #log.debug(trkpt.timestamp)
             if distance <= halfway:
-                distance = distance + dist.measure(last_trkpt,curr_trkpt)
-                last_trkpt = curr_trkpt
-                center=[last_trkpt[1], last_trkpt[0]]
-                log.debug('{0}, distance: {1}, halfway {2}'.format(distance > halfway, distance,halfway))
-        track.center = center
+                distance = distance + dist.measure(previous_trkpt,curr_trkpt)
+                previous_trkpt = curr_trkpt
+                center_old=[previous_trkpt[1], previous_trkpt[0]]
+                center=trkpt.id
+        track.center_id = center
 
-    DBSession.flush()
+    #DBSession.flush()
         
     return Response(str(center))
 

@@ -49,7 +49,7 @@ KEY_LENGTH = 24
 HASH_FUNCTION = 'sha256'  # Must be in hashlib.
 # Linear to the hashing time. Adjust to be high but take a reasonable
 # amount of time on your server. Measure with:
-# python -m timeit -s 'import passwords as p' 'p.make_hash("something")'
+# python -m timeit -s 'import passwords as p' 'p.make_hash('something')'
 COST_FACTOR = 10000
 
 def now():
@@ -59,19 +59,19 @@ def now():
 
 #n-n-link between log and image tables
 log_image_table = Table('log_image', Base.metadata,
-    Column('log_id', Integer, ForeignKey('log.id', onupdate="CASCADE", ondelete="CASCADE"), primary_key=True),
-    Column('image_id', Integer, ForeignKey('image.id',onupdate="CASCADE", ondelete="CASCADE"), primary_key=True),
+    Column('log_id', Integer, ForeignKey('log.id', onupdate='CASCADE', ondelete='CASCADE'), primary_key=True),
+    Column('image_id', Integer, ForeignKey('image.id',onupdate='CASCADE', ondelete='CASCADE'), primary_key=True),
     UniqueConstraint('log_id', 'image_id', name='log_id_image_id'))
 
 log_track_table = Table('log_track', Base.metadata,
-    Column('log_id', Integer, ForeignKey('log.id', onupdate="CASCADE", ondelete="CASCADE"), primary_key=True),
-    Column('track_id', Integer, ForeignKey('track.id',onupdate="CASCADE", ondelete="CASCADE"), primary_key=True),
+    Column('log_id', Integer, ForeignKey('log.id', onupdate='CASCADE', ondelete='CASCADE'), primary_key=True),
+    Column('track_id', Integer, ForeignKey('track.id',onupdate='CASCADE', ondelete='CASCADE'), primary_key=True),
     UniqueConstraint('log_id', 'track_id', name='log_id_track_id'))
 
 
 class Geometry(UserDefinedType):
     def get_col_spec(self):
-        return "GEOMETRY"
+        return 'GEOMETRY'
 
     def bind_expression(self, bindvalue):
         return func.ST_GeomFromText(bindvalue, 4326, type_=self)
@@ -83,15 +83,15 @@ class Geometry(UserDefinedType):
 
 class Log(Base):
     __tablename__ = 'log'
-    id = Column("id", Integer, primary_key=True, autoincrement=True)
-    infomarker = Column("infomarker", types.Integer, ForeignKey('trackpoint.id'))
-    topic = Column("topic", types.UnicodeText)
-    content = Column("content", types.UnicodeText)
-    author = Column(Integer, ForeignKey('author.id',onupdate="CASCADE", ondelete="CASCADE"))
-    etappe = Column(Integer, ForeignKey('etappe.id', onupdate="CASCADE", ondelete="CASCADE"))
-    created = Column("created", types.TIMESTAMP(timezone=False),default=timetools.now())
-    published = Column("published", types.TIMESTAMP(timezone=False),default=timetools.now())
-    uuid = Column("uuid", postgresql.UUID, unique=True)
+    id = Column('id', Integer, primary_key=True, autoincrement=True)
+    infomarker = Column('infomarker', types.Integer, ForeignKey('trackpoint.id'))
+    topic = Column('topic', types.UnicodeText)
+    content = Column('content', types.UnicodeText)
+    author = Column(Integer, ForeignKey('author.id',onupdate='CASCADE', ondelete='CASCADE'))
+    etappe = Column(Integer, ForeignKey('etappe.id', onupdate='CASCADE', ondelete='CASCADE'))
+    created = Column('created', types.TIMESTAMP(timezone=False),default=timetools.now())
+    published = Column('published', types.TIMESTAMP(timezone=False),default=timetools.now())
+    uuid = Column('uuid', postgresql.UUID, unique=True)
     image = relationship('Image', secondary=log_image_table, backref='logs')
     track = relationship('Track', secondary=log_track_table, backref='logs')
 
@@ -110,35 +110,37 @@ class Log(Base):
 class Tour(Base):
     __tablename__ = 'tour'
     id = Column(Integer, primary_key=True)
-    name = Column("name", Text)
-    description = Column("description", Text)
-    start_timestamp = Column("start_timestamp", types.TIMESTAMP(timezone=False))
-    end_timestamp = Column("end_timestamp", types.TIMESTAMP(timezone=False))
-    reduced_trackpoints = Column("reduced_trackpoints", Text)
-    extent = Column("extent", Geometry)
-    center = Column("center", postgresql.ARRAY(types.Float(), dimensions=1))
-    uuid = Column("uuid", postgresql.UUID, unique=True)
-    etappes = relationship("Etappe", backref="tour_ref", order_by="desc(Etappe.start_timestamp)")
+    name = Column('name', Text)
+    description = Column('description', Text)
+    start_timestamp = Column('start_timestamp', types.TIMESTAMP(timezone=False))
+    end_timestamp = Column('end_timestamp', types.TIMESTAMP(timezone=False))
+    reduced_trackpoints = Column('reduced_trackpoints', Text)
+    extent = Column('extent', Geometry)
+    center_id = Column('center_id', types.Integer, ForeignKey('trackpoint.id'))
+    uuid = Column('uuid', postgresql.UUID, unique=True)
+    etappes = relationship('Etappe', order_by='desc(Etappe.start_timestamp)')
+    center = relationship('Trackpoint', foreign_keys=center_id, uselist=False) 
 
     def __init__(self, name, description, start_timestamp=timetools.now(), end_timestamp=timetools.now(), 
-                center=None, uuid=str(uuidlib.uuid4())):
+                center_id=None, uuid=str(uuidlib.uuid4())):
         self.name = name
         self.description = description
         self.start_timestamp = start_timestamp
         self.end_timestamp = end_timestamp
         self.reduced_trackpoints = reduce_trackpoints(trackpoints, epsilon)
         self.extent = extent
-        self.center = center
+        self.center_id = center_id
         self.uuid = uuid
 
     def reprGeoJSON(self): #returns own columns only
-        start_timestamp = self.start_timestamp.strftime("%Y-%m-%d %H:%M:%S")
-        end_timestamp = self.end_timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        start_timestamp = self.start_timestamp.strftime('%Y-%m-%d %H:%M:%S')
+        end_timestamp = self.end_timestamp.strftime('%Y-%m-%d %H:%M:%S')
         children = [etappe.id for etappe in self.etappes]
         grandchildren = [track.id for track in sum([etappe.tracks for etappe in self.etappes],[])] #sum converts 2D-list to 1D
+        center = [float(self.center.longitude), float(self.center.latitude)]
         return dict(id=self.id, name=self.name, description=self.description,
                     start_timestamp=start_timestamp, end_timestamp=end_timestamp, 
-                    extent=self.extent, center=self.center, uuid=self.uuid,
+                    extent=self.extent, center=center, uuid=self.uuid,
                     level = 'tour', 
                     grandparent = dict(level = None, id_list = None),
                     parent = dict(level=None, id_list = None), 
@@ -150,16 +152,17 @@ class Tour(Base):
 class Etappe(Base):
     __tablename__ = 'etappe'
     id = Column(Integer, primary_key=True)
-    tour = Column(Integer, ForeignKey('tour.id', onupdate="CASCADE", ondelete="CASCADE"))
+    tour = Column(Integer, ForeignKey('tour.id', onupdate='CASCADE', ondelete='CASCADE'))
     name = Column(Text)
     description = Column(Text)
     start_timestamp = Column(types.TIMESTAMP(timezone=False),default=timetools.now())
     end_timestamp = Column(types.TIMESTAMP(timezone=False),default=timetools.now())
-    reduced_trackpoints = Column("reduced_trackpoints", Text)
-    extent = Column("extent", Geometry)
-    center = Column("center", postgresql.ARRAY(types.Float(), dimensions=1))
+    reduced_trackpoints = Column('reduced_trackpoints', Text)
+    extent = Column('extent', Geometry)
+    center_id = Column('center_id', types.Integer, ForeignKey('trackpoint.id'))
     uuid = Column(Text, unique=True)
-    tracks = relationship('Track', backref='etappe_ref', order_by="desc(Track.start_timestamp)")
+    tracks = relationship('Track', order_by='desc(Track.start_timestamp)')
+    center = relationship('Trackpoint', foreign_keys=center_id, uselist=False) 
     __table_args__ = (
         UniqueConstraint('start_timestamp', 'end_timestamp', name='etappe_start_end'),
         {}
@@ -167,7 +170,7 @@ class Etappe(Base):
 
     def __init__(self, tour, name, description, start_timestamp=timetools.now(), 
                 end_timestamp=timetools.now(), trackpoints=None, epsilon=Decimal(0.0005), 
-                extent=None, center=None, uuid=str(uuidlib.uuid4())):
+                extent=None, center_id=None, uuid=str(uuidlib.uuid4())):
         self.tour = tour.id
         self.description = description
         self.name = name
@@ -175,16 +178,17 @@ class Etappe(Base):
         self.end_timestamp = end_timestamp
         self.reduced_trackpoints = reduce_trackpoints(trackpoints, epsilon)
         self.extent = extent
-        self.center = center
+        self.center_id = center_id
         self.uuid = uuid
 
     def reprGeoJSON(self): #returns own columns only
-        start_timestamp = self.start_timestamp.strftime("%Y-%m-%d %H:%M:%S")
-        end_timestamp = self.end_timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        start_timestamp = self.start_timestamp.strftime('%Y-%m-%d %H:%M:%S')
+        end_timestamp = self.end_timestamp.strftime('%Y-%m-%d %H:%M:%S')
         children = [track.id for track in self.tracks]
+        center = [str(self.center.longitude), str(self.center.latitude)]
         return dict(id=self.id, name=self.name, description=self.description,
                     start_timestamp=start_timestamp, end_timestamp=end_timestamp, 
-                    extent=self.extent, center=self.center, uuid=self.uuid,
+                    extent=self.extent, center=center, uuid=self.uuid,
                     level = 'etappe', 
                     grandparent = dict(level = None, id_list = None),
                     parent = dict(level = 'tour', id_list = [self.tour]), 
@@ -198,28 +202,28 @@ class Etappe(Base):
 class Track(Base):
     __tablename__ = 'track'
     id = Column(Integer, primary_key=True)
-    etappe = Column(Integer, ForeignKey('etappe.id', onupdate="CASCADE", ondelete="CASCADE"))
-    mode = Column("mode", types.Integer, ForeignKey('mode.id'))
-    distance = Column("distance", Text)
-    timespan = Column("timespan", types.Interval)
+    etappe = Column(Integer, ForeignKey('etappe.id', onupdate='CASCADE', ondelete='CASCADE'))
+    mode = Column('mode', types.Integer, ForeignKey('mode.id'))
+    distance = Column('distance', Text)
+    timespan = Column('timespan', types.Interval)
     trackpoint_count = Column(Integer)
-    start_timestamp = Column("start_timestamp", types.TIMESTAMP(timezone=False))
-    end_timestamp = Column("end_timestamp", types.TIMESTAMP(timezone=False))
-    reduced_trackpoints = Column("reduced_trackpoints", Text)
-    extent = Column("extent", Geometry)
-    center = Column("center", postgresql.ARRAY(types.Float(), dimensions=1))
-    uuid = Column("uuid", postgresql.UUID, unique=True)
-    trackpoints = relationship("Trackpoint", backref="tracks", order_by="desc(Trackpoint.timestamp)")
-    #reduced_trackpoints = relationship("ReducedTrackpoints", backref="tracks")
+    start_timestamp = Column('start_timestamp', types.TIMESTAMP(timezone=False))
+    end_timestamp = Column('end_timestamp', types.TIMESTAMP(timezone=False))
+    reduced_trackpoints = Column('reduced_trackpoints', Text)
+    extent = Column('extent', Geometry)
+    center_id = Column('center_id', types.Integer, ForeignKey('trackpoint.id'))
+    uuid = Column('uuid', postgresql.UUID, unique=True)
+    center = relationship('Trackpoint', foreign_keys=center_id, uselist=False) 
+    trackpoints = relationship('Trackpoint', primaryjoin="Track.id==Trackpoint.track_id", order_by='desc(Trackpoint.timestamp)')
     __table_args__ = (
-        UniqueConstraint("start_timestamp", "end_timestamp", name="track_start_end_timestamp"),
+        UniqueConstraint('start_timestamp', 'end_timestamp', name='track_start_end_timestamp'),
         {}
         )
 
 
     def __init__(self, etappe, mode, distance, timespan, trackpoint_count,
                 start_timestamp, end_timestamp, trackpoints, epsilon, 
-                extent=None, center=None, uuid=str(uuidlib.uuid4())):
+                extent=None, center_id=None, uuid=str(uuidlib.uuid4())):
         self.etappe = etappe.id
         self.distance = distance
         self.mode = mode
@@ -229,12 +233,12 @@ class Track(Base):
         self.end_timestamp = end_timestamp
         self.reduced_trackpoints = reduce_trackpoints(trackpoints, epsilon)
         self.extent = extent
-        self.center = center
+        self.center_id = center_id
         self.uuid = uuid
 
     def reprJSON(self): #returns own columns only
-        start_timestamp = self.start_timestamp.strftime("%Y-%m-%d %H:%M:%S")
-        end_timestamp = self.end_timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        start_timestamp = self.start_timestamp.strftime('%Y-%m-%d %H:%M:%S')
+        end_timestamp = self.end_timestamp.strftime('%Y-%m-%d %H:%M:%S')
         return dict(id=self.id, distance=str(self.distance),
                     timespan=str(self.timespan), trackpoint_count=self.trackpoint_count, 
                     start_timestamp=start_timestamp, end_timestamp=end_timestamp, uuid=self.uuid)
@@ -242,12 +246,13 @@ class Track(Base):
 
 
     def reprGeoJSON(self): #returns own columns only
-        start_timestamp = self.start_timestamp.strftime("%Y-%m-%d %H:%M:%S")
-        end_timestamp = self.end_timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        start_timestamp = self.start_timestamp.strftime('%Y-%m-%d %H:%M:%S')
+        end_timestamp = self.end_timestamp.strftime('%Y-%m-%d %H:%M:%S')
         grandparent = DBSession.query(Etappe.tour).filter(Etappe.id == self.etappe).one()[0] #get tour.id
+        center = [str(self.center.longitude), str(self.center.latitude)]
         return dict(id=self.id, start_timestamp=start_timestamp, 
                     end_timestamp=end_timestamp, extent=self.extent, 
-                    center=self.center, uuid=self.uuid, level = 'track',
+                    center=center, uuid=self.uuid, level = 'track',
                     grandparent = dict(level = 'tour', id_list = [grandparent]),
                     parent = dict(level = 'etappe', id_list = [self.etappe]) , 
                     children = dict(level = None, id_list = None),
@@ -273,7 +278,7 @@ class Track(Base):
             track = DBSession.query(Track).filter(Track.uuid == uuid).one()
             return track
         except Exception, e:
-            print "Error retrieving track %s: ",e
+            print 'Error retrieving track %s: ',e
             return None
 
 
@@ -283,7 +288,7 @@ class Track(Base):
             track = DBSession.query(Track).filter(and_(Track.start_timestamp == start_timestamp, Track.end_timestamp == end_timestamp)).one()
             return track
         except Exception, e:
-            print "Error retrieving track %s: ",e
+            print 'Error retrieving track %s: ',e
             return None
 
 
@@ -291,8 +296,8 @@ class Track(Base):
 class Mode(Base):
     __tablename__ = 'mode'
     id = Column(Integer, primary_key=True)
-    type = Column("type", Text, unique=True)
-    track = relationship("Track", backref="mode_ref", order_by="desc(Track.start_timestamp)")
+    type = Column('type', Text, unique=True)
+    track = relationship('Track', order_by='desc(Track.start_timestamp)')
 
     def __init__(self, type):
         self.type = type
@@ -301,17 +306,17 @@ class Mode(Base):
 
 class Trackpoint(Base):
     __tablename__ = 'trackpoint'
-    id = Column("id", Integer, primary_key=True, autoincrement=True)
-    track = Column("track", types.Integer, ForeignKey('track.id'))
-    latitude = Column("latitude", types.Numeric(9,7))
-    longitude = Column("longitude", types.Numeric(10,7))
-    altitude = Column("altitude", types.Integer)
-    velocity = Column("velocity", types.Integer)
-    temperature = Column("temperature", types.Integer)
-    direction = Column("direction", types.Integer)
-    pressure = Column("pressure", types.Integer)
-    timestamp = Column("timestamp", types.TIMESTAMP(timezone=False))
-    uuid = Column("uuid", postgresql.UUID, unique=True)
+    id = Column('id', Integer, primary_key=True, autoincrement=True)
+    track_id = Column('track_id', types.Integer, ForeignKey('track.id'))
+    latitude = Column('latitude', types.Numeric(9,7))
+    longitude = Column('longitude', types.Numeric(10,7))
+    altitude = Column('altitude', types.Integer)
+    velocity = Column('velocity', types.Integer)
+    temperature = Column('temperature', types.Integer)
+    direction = Column('direction', types.Integer)
+    pressure = Column('pressure', types.Integer)
+    timestamp = Column('timestamp', types.TIMESTAMP(timezone=False))
+    uuid = Column('uuid', postgresql.UUID, unique=True)
     __table_args__ = (
         UniqueConstraint('latitude', 'longitude','timestamp', name='trackpoint_lat_lon_timestamp'),
         {}
@@ -337,7 +342,7 @@ class Trackpoint(Base):
             trackpoint = DBSession.query(Trackpoint).filter(and_(Trackpoint.latitude == latitude, Trackpoint.longitude == longitude, Trackpoint.timestamp == timestamp)).one()
             return trackpoint
         except Exception, e:
-            print ("Error retrieving trackpoint by lat(%s), lon(%s), time(%s) :\n %s ") % (latitude, longitude, timestamp, e)
+            print ('Error retrieving trackpoint by lat(%s), lon(%s), time(%s) :\n %s ') % (latitude, longitude, timestamp, e)
             return None
 
     @classmethod
@@ -346,7 +351,7 @@ class Trackpoint(Base):
             trackpoint = DBSession.query(Trackpoint).filter(Trackpoint.uuid == uuid).one()
             return trackpoint
         except Exception, e:
-            print "Error retrieving trackpoint %s: ",e
+            print 'Error retrieving trackpoint %s: ',e
             return None
 
 
@@ -355,24 +360,24 @@ class Trackpoint(Base):
 class Image(Base):
     __tablename__ = 'image'
     id = Column(Integer, primary_key=True)
-    name = Column("name", types.UnicodeText)
-    location = Column("location", types.UnicodeText)
-    title = Column("title", types.UnicodeText)
-    comment = Column("comment", types.UnicodeText)
-    alt = Column("alt", types.UnicodeText)
+    name = Column('name', types.UnicodeText)
+    location = Column('location', types.UnicodeText)
+    title = Column('title', types.UnicodeText)
+    comment = Column('comment', types.UnicodeText)
+    alt = Column('alt', types.UnicodeText)
     aperture = Column(Text)
     shutter = Column(Text)
     focal_length = Column(Text)
     iso = Column(Text)
     timestamp_original = Column(types.TIMESTAMP(timezone=False))
-    hash = Column("hash", types.UnicodeText)
-    hash_large = Column("hash_large", types.UnicodeText) #hash of the image with 990px width
-    #author = Column(Integer, ForeignKey('author.id',onupdate="CASCADE", ondelete="CASCADE"))
-    trackpoint = Column(Integer, ForeignKey('trackpoint.id',onupdate="CASCADE", ondelete="CASCADE"))
+    hash = Column('hash', types.UnicodeText)
+    hash_large = Column('hash_large', types.UnicodeText) #hash of the image with 990px width
+    #author = Column(Integer, ForeignKey('author.id',onupdate='CASCADE', ondelete='CASCADE'))
+    trackpoint = Column(Integer, ForeignKey('trackpoint.id',onupdate='CASCADE', ondelete='CASCADE'))
     last_change = Column(types.TIMESTAMP(timezone=False),default=timetools.now())
     published = Column(types.TIMESTAMP(timezone=False))
-    uuid = Column("uuid", postgresql.UUID, unique=True)
-    log = relationship('Log', secondary=log_image_table, backref='images')
+    uuid = Column('uuid', postgresql.UUID, unique=True)
+    log = relationship('Log', secondary=log_image_table)
     __table_args__ = (
         UniqueConstraint('location', 'name', name='image_location_name'),
         {}
