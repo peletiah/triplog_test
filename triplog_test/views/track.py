@@ -37,42 +37,30 @@ import logging
 log = logging.getLogger(__name__)
 
 
-
-@view_config(route_name = 'map_popup',
-            renderer = 'track/popup.mako'
-            )
-def map_popup(request):
+@view_config(route_name = 'map_popup_tour',
+            renderer='track/popup_tour.mako')
+def map_popup_tour(request):
     id = request.GET.get('id')
-    level = request.GET.get('level')
-    tour = etappe = track = None
-    if level == 'tour':
-        tour = DBSession.query(Tour).filter(Tour.id == id).one()
-    elif level == 'etappe':
-        etappe = DBSession.query(Etappe).filter(Etappe.id == id).one()
-    elif level == 'track':
-        track = DBSession.query(Track).filter(Track.id == id).one()
+    tour = DBSession.query(Tour).filter(Tour.id == id).one()
 
-    return {'tour' : tour, 'etappe' : etappe, 'track' : track}
+    return {'tour': tour}
 
+@view_config(route_name = 'map_popup_etappe',
+            renderer='track/popup_etappe.mako')
+def map_popup_etappe(request):
+    id = request.GET.get('id')
+    etappe = DBSession.query(Etappe).filter(Etappe.id == id).one()
 
+    return {'etappe': etappe}
 
+@view_config(route_name = 'map_popup_track',
+            renderer='track/popup_track.mako')
+def map_popup_track(request):
+    id = request.GET.get('id')
+    track = DBSession.query(Track).filter(Track.id == id).one()
 
-@view_config(route_name='track_json',
-)
-def track_json(request):
-    #tracks = DBSession.query(Track).all()
-    #track_json = Response(multilinestring_from_tracks(tracks))
-    #track_json.content_type = 'application/json'
-    tour = DBSession.query(Tour).one()
-    features = list()
-    features.append((dict(type='Feature',
-                        geometry=dict(
-                            type="MultiLineString",
-                            coordinates=json.loads(tour.reduced_trackpoints)
-                            ))))                    
-    track_json = Response(json.dumps(dict(type='FeatureCollection', features=features)))
-    track_json.content_type = 'application/json'
-    return track_json
+    return {'track': track}
+
 
 
 @view_config(route_name='track',
@@ -97,8 +85,8 @@ def track_view(request):
     }
 
 
-@view_config(route_name='features_in_extent')
-def features_in_extent(request):
+@view_config(route_name='features_in_bbox')
+def features_in_bbox(request):
     ## get request variables
     session = request.session
     if 'features' not in session:
@@ -112,9 +100,7 @@ def features_in_extent(request):
         session['features']['track'] = []
 
 
-
-
-    maxx, maxy, minx, miny = request.GET.get('extent').split(',')
+    maxx, maxy, minx, miny = request.GET.get('bbox').split(',')
 
     #- define viewport for query
 
@@ -136,7 +122,7 @@ def features_in_extent(request):
 
 # /// FETCH TOURS IN VIEWPORT ///
 
-    tours_contained_query = DBSession.query(Tour).filter(func.ST_Contains(viewport, Tour.extent))
+    tours_contained_query = DBSession.query(Tour).filter(func.ST_Contains(viewport, Tour.bbox))
     features, relatives, tour_ids, tours = maptools.query_features(
             tours_contained_query, False, features, relatives, session=session['features']['tour'], level='tour'
             ) #Tours contained
@@ -148,8 +134,8 @@ def features_in_extent(request):
 # /// FETCH ETAPPES IN VIEWPORT ///
 
     tour_partial_query = DBSession.query(Tour).filter(or_(
-        func.ST_Overlaps(viewport, Tour.extent), 
-        func.ST_Contains(Tour.extent, viewport) # !!viewport is INSIDE of Tour.extent!!
+        func.ST_Overlaps(viewport, Tour.bbox), 
+        func.ST_Contains(Tour.bbox, viewport) # !!viewport is INSIDE of Tour.bbox!!
         ))
     features, relatives, tour_id_list, tours = maptools.query_features(
             tour_partial_query, branch=True, features=features, relatives=relatives,  level='tour'
@@ -162,8 +148,8 @@ def features_in_extent(request):
 
         etappes_contained_query = DBSession.query(Etappe).filter(and_(
             or_(
-                func.ST_Overlaps(viewport, Track.extent),
-                func.ST_Contains(viewport, Etappe.extent),
+                func.ST_Overlaps(viewport, Track.bbox),
+                func.ST_Contains(viewport, Etappe.bbox),
                 ),
                 Etappe.tour.in_(tour_id_list)
             ))
@@ -178,8 +164,8 @@ def features_in_extent(request):
         
         etappes_partial_query = DBSession.query(Etappe).filter(
             #or_(
-             #   func.ST_Overlaps(viewport, Etappe.extent), 
-                func.ST_Contains(Etappe.extent, viewport) # !!viewport is INSIDE of Etappe.extent
+             #   func.ST_Overlaps(viewport, Etappe.bbox), 
+                func.ST_Contains(Etappe.bbox, viewport) # !!viewport is INSIDE of Etappe.bbox
             #)
             )
         features, relatives, etappe_id_list, etappes = maptools.query_features(
@@ -188,9 +174,9 @@ def features_in_extent(request):
         if etappe_id_list:
             tracks_contained_query = DBSession.query(Track).filter(and_(
                         or_(
-                            func.ST_Overlaps(viewport, Track.extent),
-                            func.ST_Contains(viewport, Track.extent),
-                            func.ST_Contains(Track.extent, viewport)
+                            func.ST_Overlaps(viewport, Track.bbox),
+                            func.ST_Contains(viewport, Track.bbox),
+                            func.ST_Contains(Track.bbox, viewport)
                             ), 
                         Track.etappe.in_(etappe_id_list)
                         ))   

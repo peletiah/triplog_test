@@ -24,14 +24,20 @@ def main(global_config, **settings):
     config.add_static_view('static', 'static', cache_max_age=3600)
     config.add_route('home', '/')
     config.add_route('track', '/track')
-    config.add_route('track_json', '/track_json')
+
+    config.add_route('get_center', '/get_center')
+
+    config.add_route('map_popup', '/map_popup')
+    config.add_route('map_popup_tour', '/map_popup/tour')
+    config.add_route('map_popup_etappe', '/map_popup/etappe')
+    config.add_route('map_popup_track', '/map_popup/track')
+
     config.add_route('set_mode', '/set_mode')
     config.add_route('add_track', '/add_track')
-    config.add_route('track_extent:trackid', '/track_extent/{trackid}')
-    config.add_route('track_extent', '/track_extent')
-    config.add_route('features_in_extent', '/features_in_extent')
+    config.add_route('track_bbox:trackid', '/track_bbox/{trackid}')
+    config.add_route('track_bbox', '/track_bbox')
+    config.add_route('features_in_bbox', '/features_in_bbox')
     config.add_route('reduce_trackpoints', '/reduce_trackpoints')
-    config.add_route('get_center', '/get_center')
-    config.add_route('map_popup', '/map_popup')
+    
     config.scan()
     return config.make_wsgi_app()

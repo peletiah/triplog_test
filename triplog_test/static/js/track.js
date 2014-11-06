@@ -175,14 +175,9 @@ var overlay = new ol.Overlay({
 
 
 var fetchFeatures = function() {
-        extent = view.calculateExtent(map.getSize())
-        minx = extent[0]
-        miny = extent[1]
-        maxx = extent[2]
-        maxy = extent[3]
-        //console.log('/features_in_extent?extent='+maxx+','+maxy+','+minx+','+miny)
+        bbox = view.calculateExtent(map.getSize())
         call = $.ajax({
-          url: '/features_in_extent?extent='+maxx+','+maxy+','+minx+','+miny
+          url: '/features_in_bbox?bbox='+bbox
         })
         return call
         
@@ -278,7 +273,7 @@ var createLayer = function(feature) {
         var coord = ol.proj.transform([center[0], center[1]], 'EPSG:4326', 'EPSG:3857')
         overlay.setPosition(coord);
         $.ajax({
-                    url: '/map_popup?id='+properties.id+'&level='+properties.level
+                    url: '/map_popup/'+properties.level+'?id='+properties.id
                   }).done( function(response) { 
                     console.log(response)
                     content.innerHTML = response 

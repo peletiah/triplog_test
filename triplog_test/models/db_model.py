@@ -115,7 +115,7 @@ class Tour(Base):
     start_timestamp = Column('start_timestamp', types.TIMESTAMP(timezone=False))
     end_timestamp = Column('end_timestamp', types.TIMESTAMP(timezone=False))
     reduced_trackpoints = Column('reduced_trackpoints', Text)
-    extent = Column('extent', Geometry)
+    bbox = Column('bbox', Geometry)
     center_id = Column('center_id', types.Integer, ForeignKey('trackpoint.id'))
     uuid = Column('uuid', postgresql.UUID, unique=True)
     etappes = relationship('Etappe', order_by='desc(Etappe.start_timestamp)')
@@ -128,7 +128,7 @@ class Tour(Base):
         self.start_timestamp = start_timestamp
         self.end_timestamp = end_timestamp
         self.reduced_trackpoints = reduce_trackpoints(trackpoints, epsilon)
-        self.extent = extent
+        self.bbox = bbox
         self.center_id = center_id
         self.uuid = uuid
 
@@ -140,7 +140,7 @@ class Tour(Base):
         center = [float(self.center.longitude), float(self.center.latitude)]
         return dict(id=self.id, name=self.name, description=self.description,
                     start_timestamp=start_timestamp, end_timestamp=end_timestamp, 
-                    extent=self.extent, center=center, uuid=self.uuid,
+                    bbox=self.bbox, center=center, uuid=self.uuid,
                     level = 'tour', 
                     grandparent = dict(level = None, id_list = None),
                     parent = dict(level=None, id_list = None), 
@@ -158,7 +158,7 @@ class Etappe(Base):
     start_timestamp = Column(types.TIMESTAMP(timezone=False),default=timetools.now())
     end_timestamp = Column(types.TIMESTAMP(timezone=False),default=timetools.now())
     reduced_trackpoints = Column('reduced_trackpoints', Text)
-    extent = Column('extent', Geometry)
+    bbox = Column('bbox', Geometry)
     center_id = Column('center_id', types.Integer, ForeignKey('trackpoint.id'))
     uuid = Column(Text, unique=True)
     tracks = relationship('Track', order_by='desc(Track.start_timestamp)')
@@ -170,14 +170,14 @@ class Etappe(Base):
 
     def __init__(self, tour, name, description, start_timestamp=timetools.now(), 
                 end_timestamp=timetools.now(), trackpoints=None, epsilon=Decimal(0.0005), 
-                extent=None, center_id=None, uuid=str(uuidlib.uuid4())):
+                bbox=None, center_id=None, uuid=str(uuidlib.uuid4())):
         self.tour = tour.id
         self.description = description
         self.name = name
         self.start_timestamp = start_timestamp
         self.end_timestamp = end_timestamp
         self.reduced_trackpoints = reduce_trackpoints(trackpoints, epsilon)
-        self.extent = extent
+        self.bbox = bbox
         self.center_id = center_id
         self.uuid = uuid
 
@@ -185,10 +185,10 @@ class Etappe(Base):
         start_timestamp = self.start_timestamp.strftime('%Y-%m-%d %H:%M:%S')
         end_timestamp = self.end_timestamp.strftime('%Y-%m-%d %H:%M:%S')
         children = [track.id for track in self.tracks]
-        center = [str(self.center.longitude), str(self.center.latitude)]
+        center = [float(self.center.longitude), float(self.center.latitude)]
         return dict(id=self.id, name=self.name, description=self.description,
                     start_timestamp=start_timestamp, end_timestamp=end_timestamp, 
-                    extent=self.extent, center=center, uuid=self.uuid,
+                    bbox=self.bbox, center=center, uuid=self.uuid,
                     level = 'etappe', 
                     grandparent = dict(level = None, id_list = None),
                     parent = dict(level = 'tour', id_list = [self.tour]), 
@@ -210,7 +210,7 @@ class Track(Base):
     start_timestamp = Column('start_timestamp', types.TIMESTAMP(timezone=False))
     end_timestamp = Column('end_timestamp', types.TIMESTAMP(timezone=False))
     reduced_trackpoints = Column('reduced_trackpoints', Text)
-    extent = Column('extent', Geometry)
+    bbox = Column('bbox', Geometry)
     center_id = Column('center_id', types.Integer, ForeignKey('trackpoint.id'))
     uuid = Column('uuid', postgresql.UUID, unique=True)
     center = relationship('Trackpoint', foreign_keys=center_id, uselist=False) 
@@ -223,7 +223,7 @@ class Track(Base):
 
     def __init__(self, etappe, mode, distance, timespan, trackpoint_count,
                 start_timestamp, end_timestamp, trackpoints, epsilon, 
-                extent=None, center_id=None, uuid=str(uuidlib.uuid4())):
+                bbox=None, center_id=None, uuid=str(uuidlib.uuid4())):
         self.etappe = etappe.id
         self.distance = distance
         self.mode = mode
@@ -232,7 +232,7 @@ class Track(Base):
         self.start_timestamp = start_timestamp
         self.end_timestamp = end_timestamp
         self.reduced_trackpoints = reduce_trackpoints(trackpoints, epsilon)
-        self.extent = extent
+        self.bbox = bbox
         self.center_id = center_id
         self.uuid = uuid
 
@@ -249,9 +249,9 @@ class Track(Base):
         start_timestamp = self.start_timestamp.strftime('%Y-%m-%d %H:%M:%S')
         end_timestamp = self.end_timestamp.strftime('%Y-%m-%d %H:%M:%S')
         grandparent = DBSession.query(Etappe.tour).filter(Etappe.id == self.etappe).one()[0] #get tour.id
-        center = [str(self.center.longitude), str(self.center.latitude)]
+        center = [float(self.center.longitude), float(self.center.latitude)]
         return dict(id=self.id, start_timestamp=start_timestamp, 
-                    end_timestamp=end_timestamp, extent=self.extent, 
+                    end_timestamp=end_timestamp, bbox=self.bbox, 
                     center=center, uuid=self.uuid, level = 'track',
                     grandparent = dict(level = 'tour', id_list = [grandparent]),
                     parent = dict(level = 'etappe', id_list = [self.etappe]) , 

@@ -138,9 +138,9 @@ def add_track(request):
     
 
 # find the bbox for track
-@view_config(route_name='track_extent')
-@view_config(route_name='track_extent:trackid')
-def track_extent(request):
+@view_config(route_name='track_bbox')
+@view_config(route_name='track_bbox:trackid')
+def track_bbox(request):
     if request.matchdict:
         #track_id = request.matchdict['trackid']
         #track = Track.get_track_by_id(track_id)
@@ -158,18 +158,18 @@ def track_extent(request):
                     #maxx,maxy = numpy.max(trkpts, axis=0)
                     #minx,miny = numpy.min(trkpts, axis=0)
                     #minx,miny = numpy.min(trkpts, axis=0)
-                    #extent = u'POLYGON(( \
+                    #bbox = u'POLYGON(( \
                     #                    {maxx} {maxy}, \
                     #                    {maxx} {miny}, \
                     #                    {minx} {miny}, \
                     #                    {minx} {maxy}, \
                     #                    {maxx} {maxy}))'.format( \
                     #                    maxx=maxx, maxy=maxy, minx=minx, miny=miny)
-                    #track.extent = DBSession.query(select([func.ST_AsText(func.ST_Transform(func.ST_GeomFromText(extent, 4326),3857))]).label("extent")).one()[0]
+                    #track.bbox = DBSession.query(select([func.ST_AsText(func.ST_Transform(func.ST_GeomFromText(bbox, 4326),3857))]).label("bbox")).one()[0]
             tour.center = map(float, numpy.mean(trkpts, axis=0))
             DBSession.flush()
         
-    return Response(tour.extent)
+    return Response(tour.bbox)
 
 
 
