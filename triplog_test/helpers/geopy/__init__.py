@@ -1,3 +1,6 @@
+import sys,os
+sys.path.append(os.path.abspath('helpers'))
+
 from geopy.point import Point
 from geopy.location import Location
 from geopy import geocoders

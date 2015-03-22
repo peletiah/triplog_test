@@ -38,6 +38,8 @@ def main(global_config, **settings):
     config.add_route('track_bbox', '/track_bbox')
     config.add_route('features_in_bbox', '/features_in_bbox')
     config.add_route('reduce_trackpoints', '/reduce_trackpoints')
+    config.add_route('link_etappe_image', '/link_etappe_image')
+    config.add_route('testmap', '/testmap')
     
     config.scan()
     return config.make_wsgi_app()

@@ -32,9 +32,9 @@
 
       var styleRed = new ol.style.Style({
             stroke: new ol.style.Stroke({
-                  color: 'rgba(255,0,0,0.4)',
-                  pointRadius: 4,
-                  width: 6
+                  color: 'rgba(255,0,0,0.5)',
+                  pointRadius: 8,
+                  width: 4
                   })
                 });
 
@@ -161,7 +161,7 @@ var overlay = new ol.Overlay({
 
       var view = new ol.View({
           center: [5719495.643944736, 4335033.122424604],
-          zoom: 8
+          zoom: 3
         });
 
       var map = new ol.Map({
@@ -272,6 +272,7 @@ var createLayer = function(feature) {
         center = properties.center
         var coord = ol.proj.transform([center[0], center[1]], 'EPSG:4326', 'EPSG:3857')
         overlay.setPosition(coord);
+        console.log('/map_popup/'+properties.level+'?id='+properties.id)
         $.ajax({
                     url: '/map_popup/'+properties.level+'?id='+properties.id
                   }).done( function(response) { 

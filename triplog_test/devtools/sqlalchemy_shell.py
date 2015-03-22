@@ -7,6 +7,8 @@ import atexit
 from pyramid.config import Configurator
 from sqlalchemy import engine_from_config
 
+from pyramid.paster import bootstrap
+from pyramid.request import Request
 
 from triplog_test.models.db_model import DBSession
 
@@ -48,10 +50,9 @@ class SQLAlchemyShell(InteractiveConsole):
     def save_history(self, histfile):
         readline.write_history_file(histfile)
 
-
-engine=engine_from_config({'sqlalchemy.url':'postgresql://poab:eflavubOp0@localhost/triplog_small'}, 'sqlalchemy.')
-#engine=engine_from_config({'sqlalchemy.url':'sqlite:///home/benke/env/poab_editor/poab_editor.db'}, 'sqlalchemy.')
-DBSession.configure(bind=engine)
+env = bootstrap('development.ini')
+#engine=engine_from_config(env['registry'].settings, 'sqlalchemy.')
+#DBSession.configure(bind=engine)
 ic = SQLAlchemyShell()
 cmd = "from triplog_test.models.db_model import *"
 print ">>>", cmd

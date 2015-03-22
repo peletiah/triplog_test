@@ -45,6 +45,8 @@ def map_popup_tour(request):
 
     return {'tour': tour}
 
+
+
 @view_config(route_name = 'map_popup_etappe',
             renderer='track/popup_etappe.mako')
 def map_popup_etappe(request):
@@ -53,6 +55,9 @@ def map_popup_etappe(request):
 
     return {'etappe': etappe}
 
+
+
+
 @view_config(route_name = 'map_popup_track',
             renderer='track/popup_track.mako')
 def map_popup_track(request):
@@ -60,7 +65,6 @@ def map_popup_track(request):
     track = DBSession.query(Track).filter(Track.id == id).one()
 
     return {'track': track}
-
 
 
 @view_config(route_name='track',
@@ -148,7 +152,7 @@ def features_in_bbox(request):
 
         etappes_contained_query = DBSession.query(Etappe).filter(and_(
             or_(
-                func.ST_Overlaps(viewport, Track.bbox),
+                func.ST_Overlaps(viewport, Etappe.bbox),
                 func.ST_Contains(viewport, Etappe.bbox),
                 ),
                 Etappe.tour.in_(tour_id_list)
@@ -187,10 +191,28 @@ def features_in_bbox(request):
                     set(session['features']['track'] + track_ids)
                     )
 
+    # /// query for the remaining tracks which are not below a tour/etappe
+    else:
+        tracks_contained_query = DBSession.query(Track).filter(and_(
+                    or_(
+                        func.ST_Overlaps(viewport, Track.bbox),
+                        func.ST_Contains(viewport, Track.bbox),
+                        func.ST_Contains(Track.bbox, viewport)
+                        ), 
+                    Track.etappe == None
+                    ))
+        features, relatives, track_ids, tracks = maptools.query_features(
+                tracks_contained_query, False, features, relatives, session['features']['track'], level='track'
+                )
+        session['features']['track'] = list(
+                set(session['features']['track'] + track_ids)
+                )
+
 
 # /// RETURN FEATURES ///
 
     #track_json = Response(json.dumps(dict(type='FeatureCollection', features=features, crs=dict(type='name',properties=dict(name='urn:ogc:def:crs:OGC:1.3:CRS84')))))
+    log.debug(json.dumps(dict(type='FeatureCollection', features=features)))
     track_json = Response(json.dumps([relatives, dict(type='FeatureCollection', features=features)]))
     track_json.content_type = 'application/json'
     return(track_json)

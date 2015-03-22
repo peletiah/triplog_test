@@ -53,3 +53,25 @@ html, body,
       .ol-popup-closer:after {
         content: "✖";
       }
+
+
+.galleryimages {
+    min-height: 200px;
+    min-width: 312px;
+    float: left;
+    display: inline;
+}
+
+.thumbIndv {
+  float: left;
+  height: 75px;
+  width: 75px;
+  margin: 0;
+  margin-bottom: 3px;
+  margin-left: 3px;
+  padding: 0;
+}
+
+.thumbIndv img {
+  border:medium none;
+}

@@ -157,7 +157,6 @@ def track_bbox(request):
                     log.debug(track.id)
                     #maxx,maxy = numpy.max(trkpts, axis=0)
                     #minx,miny = numpy.min(trkpts, axis=0)
-                    #minx,miny = numpy.min(trkpts, axis=0)
                     #bbox = u'POLYGON(( \
                     #                    {maxx} {maxy}, \
                     #                    {maxx} {miny}, \
@@ -166,7 +165,6 @@ def track_bbox(request):
                     #                    {maxx} {maxy}))'.format( \
                     #                    maxx=maxx, maxy=maxy, minx=minx, miny=miny)
                     #track.bbox = DBSession.query(select([func.ST_AsText(func.ST_Transform(func.ST_GeomFromText(bbox, 4326),3857))]).label("bbox")).one()[0]
-            tour.center = map(float, numpy.mean(trkpts, axis=0))
             DBSession.flush()
         
     return Response(tour.bbox)
@@ -287,4 +285,14 @@ def get_center(request):
         
     return Response(str(center))
 
-        
+
+@view_config(route_name='link_etappe_image')
+def link_etappe_image(request):
+    etappes = DBSession.query(Etappe).all()
+    for etappe in etappes:
+        images = sum([trackpoint.images for trackpoint in sum([track.trackpoints for track in etappe.tracks],[])],[])
+        for image in images:
+            etappe.images.append(image)
+    DBSession.flush()
+    return Response('OK')
+

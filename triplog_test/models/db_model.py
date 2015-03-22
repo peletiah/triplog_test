@@ -68,13 +68,17 @@ log_track_table = Table('log_track', Base.metadata,
     Column('track_id', Integer, ForeignKey('track.id',onupdate='CASCADE', ondelete='CASCADE'), primary_key=True),
     UniqueConstraint('log_id', 'track_id', name='log_id_track_id'))
 
+etappe_image_table = Table('etappe_image', Base.metadata,
+    Column('etappe_id', Integer, ForeignKey('etappe.id', onupdate='CASCADE', ondelete='CASCADE'), primary_key=True),
+    Column('image_id', Integer, ForeignKey('image.id',onupdate='CASCADE', ondelete='CASCADE'), primary_key=True),
+    UniqueConstraint('etappe_id', 'image_id', name='etappe_id_image_id'))
 
 class Geometry(UserDefinedType):
     def get_col_spec(self):
         return 'GEOMETRY'
 
     def bind_expression(self, bindvalue):
-        return func.ST_GeomFromText(bindvalue, 4326, type_=self)
+        return func.ST_GeomFromText(bindvalue, 3857, type_=self)
 
     def column_expression(self, col):
         return func.ST_AsText(col, type_=self)
@@ -87,7 +91,7 @@ class Log(Base):
     infomarker = Column('infomarker', types.Integer, ForeignKey('trackpoint.id'))
     topic = Column('topic', types.UnicodeText)
     content = Column('content', types.UnicodeText)
-    author = Column(Integer, ForeignKey('author.id',onupdate='CASCADE', ondelete='CASCADE'))
+    #author = Column(Integer, ForeignKey('author.id',onupdate='CASCADE', ondelete='CASCADE'))
     etappe = Column(Integer, ForeignKey('etappe.id', onupdate='CASCADE', ondelete='CASCADE'))
     created = Column('created', types.TIMESTAMP(timezone=False),default=timetools.now())
     published = Column('published', types.TIMESTAMP(timezone=False),default=timetools.now())
@@ -95,11 +99,10 @@ class Log(Base):
     image = relationship('Image', secondary=log_image_table, backref='logs')
     track = relationship('Track', secondary=log_track_table, backref='logs')
 
-    def __init__(self, infomarker, topic, content, author, etappe, created, published, uuid):
+    def __init__(self, infomarker, topic, content, etappe, created, published, uuid):
         self.infomarker = infomarker
         self.topic = topic
         self.content = content
-        self.author = author
         self.etappe = etappe
         self.created = created
         self.published = published
@@ -163,6 +166,7 @@ class Etappe(Base):
     uuid = Column(Text, unique=True)
     tracks = relationship('Track', order_by='desc(Track.start_timestamp)')
     center = relationship('Trackpoint', foreign_keys=center_id, uselist=False) 
+    images = relationship('Image', secondary=etappe_image_table)
     __table_args__ = (
         UniqueConstraint('start_timestamp', 'end_timestamp', name='etappe_start_end'),
         {}
@@ -248,7 +252,10 @@ class Track(Base):
     def reprGeoJSON(self): #returns own columns only
         start_timestamp = self.start_timestamp.strftime('%Y-%m-%d %H:%M:%S')
         end_timestamp = self.end_timestamp.strftime('%Y-%m-%d %H:%M:%S')
-        grandparent = DBSession.query(Etappe.tour).filter(Etappe.id == self.etappe).one()[0] #get tour.id
+        try:
+            grandparent = DBSession.query(Etappe.tour).filter(Etappe.id == self.etappe).one()[0] #get tour.id
+        except:
+            grandparent = None
         center = [float(self.center.longitude), float(self.center.latitude)]
         return dict(id=self.id, start_timestamp=start_timestamp, 
                     end_timestamp=end_timestamp, bbox=self.bbox, 
@@ -317,6 +324,7 @@ class Trackpoint(Base):
     pressure = Column('pressure', types.Integer)
     timestamp = Column('timestamp', types.TIMESTAMP(timezone=False))
     uuid = Column('uuid', postgresql.UUID, unique=True)
+    images = relationship('Image', primaryjoin="Trackpoint.id==Image.trackpoint", order_by='desc(Image.timestamp_original)')
     __table_args__ = (
         UniqueConstraint('latitude', 'longitude','timestamp', name='trackpoint_lat_lon_timestamp'),
         {}
