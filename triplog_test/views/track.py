@@ -24,7 +24,7 @@ from triplog_test.helpers import (
     maptools
 )
 
-from modify_track import generate_json_from_tracks
+from .modify_track import generate_json_from_tracks
 
 from sqlalchemy import and_,or_,select,func
 
@@ -108,7 +108,7 @@ def features_in_bbox(request):
 
     #- define viewport for query
 
-    viewport = u'POLYGON(( \
+    viewport = 'POLYGON(( \
                 {maxx} {maxy}, \
                 {maxx} {miny}, \
                 {minx} {miny}, \

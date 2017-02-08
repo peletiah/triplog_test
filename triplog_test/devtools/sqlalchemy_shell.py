@@ -55,7 +55,7 @@ env = bootstrap('development.ini')
 #DBSession.configure(bind=engine)
 ic = SQLAlchemyShell()
 cmd = "from triplog_test.models.db_model import *"
-print ">>>", cmd
+print((">>>", cmd))
 ic.push(cmd)
 ic.interact(banner="Use quit() or Ctrl-D (i.e. EOF) to exit")
 

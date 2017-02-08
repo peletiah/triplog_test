@@ -54,7 +54,7 @@ def testmap(request):
  
     #- define viewport for query
  
-    viewport = u'POLYGON(( \
+    viewport = 'POLYGON(( \
                 {maxx} {maxy}, \
                 {maxx} {miny}, \
                 {minx} {miny}, \

@@ -21,7 +21,7 @@ from triplog_test.helpers import (
     gpxtools
 )
 
-from triplog_test.helpers.geopy.distance import VincentyDistance
+from geopy.distance import VincentyDistance
 
 from triplog_test.helpers.ramerdouglaspeucker import reduce_trackpoints
 
@@ -84,10 +84,10 @@ def add_trackpoints_to_db(trackpoints, track):
         try:
             DBSession.add(trackpoint)
             DBSession.flush()
-            print trackpoint.timestamp
-        except Exception, e:
-            print "\n\nTrackpoint could not be added!\n\n"
-            print e
+            print((trackpoint.timestamp))
+        except Exception as e:
+            print("\n\nTrackpoint could not be added!\n\n")
+            print(e)
             DBSession.rollback()
 
 
@@ -95,17 +95,17 @@ def add_track_to_db(track_details):
     track = track_details['track']
     trackpoints = track_details['trackpoints']
 
-    print type(track.reduced_trackpoints)
+    print((type(track.reduced_trackpoints)))
     track.uuid = str(uuid.uuid4())
     track.start_timestamp = trackpoints[0].timestamp
     track.end_timestamp = trackpoints[-1].timestamp
     try:
         DBSession.add(track)
         DBSession.flush()
-    except Exception, e:
+    except Exception as e:
         DBSession.rollback()
-        print "\n\nTrack could not be added!\n\n"
-        print e
+        print("\n\nTrack could not be added!\n\n")
+        print(e)
         return None
     return track
 
@@ -118,19 +118,19 @@ def add_track(request):
     for dir,subdir,files in os.walk('/srv/trackdata/WSG2000/collect'):
         for file in files:
             if file.endswith('gpx'):
-                print os.path.join(dir, file)
-                print '\n\n\n\n\n'
+                print((os.path.join(dir, file)))
+                print('\n\n\n\n\n')
                 parsed_tracks = gpxtools.parse_gpx(os.path.join(dir,file))
-                print 'FINISHED parsing GPX\n\n\n'
+                print('FINISHED parsing GPX\n\n\n')
                 for track_details in parsed_tracks:
                     if track_details['trackpoints'][0].timestamp > datetime.datetime.strptime('2014-02-01','%Y-%m-%d'):
                         track = add_track_to_db( track_details)
                         if track:
                             add_trackpoints_to_db( track_details['trackpoints'], track )
                             tracks_in_db.append(os.path.join(dir,file))
-                            print '\n\n\n\n\n\n\n'
-                            print track.start_timestamp,track.distance
-                            print '\n\n\n\n\n\n\n'
+                            print('\n\n\n\n\n\n\n')
+                            print((track.start_timestamp,track.distance))
+                            print('\n\n\n\n\n\n\n')
                         else:
                            tracks_not_in_db.append(os.path.join(dir,file))
     return Response(str(tracks_in_db))

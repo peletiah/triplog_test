@@ -37,7 +37,7 @@ def trackpoints_to_geojson(reduced_trkpts):
 
 def parse_track_description(track_desc):
     #regex match of track description, save values in re-groups
-    print track_desc
+    print(track_desc)
     metrics=re.compile(r'Total Track Points: (?P<pt_count>\d+). Total time: (?P<h>\d+)h(?P<m>\d+)m(?P<s>\d+)s. Journey: (?P<distance>\d+.\d+)Km').match(track_desc)
     pt_count = int(metrics.group("pt_count")) #number of trackpoints in this track
     hours = int(metrics.group("h"))
@@ -95,8 +95,8 @@ def parse_gpx(gpxfile):
 
         track_desc = track_xml.find('{%s}desc'% gpx_ns).text
         trackpoint_count, timespan, distance = parse_track_description(track_desc)
-        print len(trackpoints)
-        print distance
+        print((len(trackpoints)))
+        print(distance)
         if not distance == '0.000': #TODO DP-calc hangs when there was no movement in the track
             reduced_trkpts=reduce_trackpoints(trackpoints, rdp_factor) #reduces the trackpoints with Douglas Peucker Algorithm
             track = Track(reduced_trackpoints=reduced_trkpts, timespan=timespan, distance=distance, trackpoint_count=trackpoint_count, 

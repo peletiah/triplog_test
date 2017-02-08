@@ -81,7 +81,7 @@ class Vec:
         if not isinstance(obj, self.__class__):
             raise TypeError
 
-        return self.__class__(*map(sum, zip(self.coords, obj.coords)))
+        return self.__class__(*list(map(sum, list(zip(self.coords, obj.coords)))))
 
     def __neg__(self):
         """Reverse the vector."""

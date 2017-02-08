@@ -8,6 +8,7 @@ CHANGES = open(os.path.join(here, 'CHANGES.txt')).read()
 
 requires = [
     'pyramid',
+    'pyramid_mako',
     'SQLAlchemy',
     'transaction',
     'pyramid_tm',
@@ -18,9 +19,11 @@ requires = [
     'lxml',
     'numpy',
     'nose',
-    'BeautifulSoup'
+    'geopy'
     ]
 
+    
+#'BeautifulSoup'
 setup(name='triplog_test',
       version='0.0',
       description='triplog_test',

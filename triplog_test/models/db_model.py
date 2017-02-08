@@ -32,7 +32,6 @@ from triplog_test.helpers.ramerdouglaspeucker import reduce_trackpoints
 import hashlib
 from os import urandom
 from base64 import b64encode, b64decode
-from itertools import izip
 import uuid as uuidlib
 import datetime
 from decimal import Decimal
@@ -284,8 +283,8 @@ class Track(Base):
         try:
             track = DBSession.query(Track).filter(Track.uuid == uuid).one()
             return track
-        except Exception, e:
-            print 'Error retrieving track %s: ',e
+        except Exception as e:
+            print(('Error retrieving track {0}: '.format(e)))
             return None
 
 
@@ -294,8 +293,8 @@ class Track(Base):
         try:
             track = DBSession.query(Track).filter(and_(Track.start_timestamp == start_timestamp, Track.end_timestamp == end_timestamp)).one()
             return track
-        except Exception, e:
-            print 'Error retrieving track %s: ',e
+        except Exception as e:
+            print(('Error retrieving track {0}: '.format(e)))
             return None
 
 
@@ -349,8 +348,8 @@ class Trackpoint(Base):
         try:
             trackpoint = DBSession.query(Trackpoint).filter(and_(Trackpoint.latitude == latitude, Trackpoint.longitude == longitude, Trackpoint.timestamp == timestamp)).one()
             return trackpoint
-        except Exception, e:
-            print ('Error retrieving trackpoint by lat(%s), lon(%s), time(%s) :\n %s ') % (latitude, longitude, timestamp, e)
+        except Exception as e:
+            print(('Error retrieving trackpoint by lat({0}), lon({1}), time({2}) :\n {3} '.format(latitude, longitude, timestamp, e)))
             return None
 
     @classmethod
@@ -358,8 +357,8 @@ class Trackpoint(Base):
         try:
             trackpoint = DBSession.query(Trackpoint).filter(Trackpoint.uuid == uuid).one()
             return trackpoint
-        except Exception, e:
-            print 'Error retrieving trackpoint %s: ',e
+        except Exception as e:
+            print(('Error retrieving trackpoint {0}: '.format(e)))
             return None
 
 
